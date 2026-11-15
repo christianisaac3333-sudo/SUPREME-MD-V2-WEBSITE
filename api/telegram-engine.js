@@ -1,7 +1,6 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const { commandReply } = require('./command-router');
 const { startMemberSession, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
 
 let bot = null;
@@ -22,7 +21,7 @@ function formatDuration(totalSeconds) {
   return [days ? days + 'd' : null, hours ? hours + 'h' : null, minutes ? minutes + 'm' : null, remainder + 's'].filter(Boolean).join(' ');
 }
 
-function telegramMenu({ username, role, status, connected, capacity }) {
+function telegramMenu({ username, role, status, whatsappStatus, connected, capacity }) {
   return [
     '╭─────────── ✦ ♤ ✦ ───────────╮',
     '        ♤  SUPREME MD V2  ♤',
@@ -31,6 +30,7 @@ function telegramMenu({ username, role, status, connected, capacity }) {
     '       ✧  CONTROL PANEL  ✧',
     '╭──────────────────────────────╮',
     '│ ◈ Status     · ' + status,
+    '│ ◈ WhatsApp   · ' + whatsappStatus,
     '│ ◈ Version    · ' + VERSION,
     '│ ◈ Sessions   · ' + connected + ' / ' + capacity,
     '│ ◈ Member     · ' + username,
@@ -108,15 +108,17 @@ function startTelegramBot(pool) {
   }
 
   async function sendMenu(chatId, member) {
-    const [counts, runtime] = await Promise.all([
+    const [counts, runtime, session] = await Promise.all([
       pool.query("SELECT COUNT(*)::int AS connected FROM whatsapp_sessions WHERE status='connected'"),
-      getMemberRuntimeStatus(member.id)
+      getMemberRuntimeStatus(member.id),
+      pool.query('SELECT status FROM whatsapp_sessions WHERE user_id=$1', [member.id])
     ]);
-    const status = runtime || 'ONLINE';
+    const whatsappStatus = runtime || session.rows[0]?.status || 'DISCONNECTED';
     await bot.sendMessage(chatId, telegramMenu({
       username: member.username,
       role: member.role,
-      status: status.toUpperCase(),
+      status: 'ONLINE',
+      whatsappStatus: String(whatsappStatus).toUpperCase(),
       connected: counts.rows[0].connected,
       capacity: MAX_SESSIONS
     }), {
