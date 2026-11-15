@@ -259,3 +259,73 @@ async function refreshMaintenanceBanner(){
   }catch(_){}
 }
 refreshMaintenanceBanner();
+
+
+/* MEMBER TOOLS: live account, session, service and help utilities */
+function openToolModal(heading,body){
+  if(!modalBox)return;
+  modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><span class="modal-crown">♤</span><p class="eyebrow">SUPREME MD V2 / MEMBER TOOLS</p><h3>'+escapeText(heading)+'</h3><div id="memberToolBody">'+body+'</div>';
+  modal?.classList.add('show');modal?.setAttribute('aria-hidden','false');
+  modalBox.querySelector('.modal-close')?.addEventListener('click',closeModal);
+}
+async function openMemberTool(kind){
+  if(kind==='settings'){
+    const user=await refreshSession();
+    if(!user){openToolModal('SIGN IN REQUIRED','<p class="admin-note">Sign in to view your private profile and preferences.</p><button class="btn gold" id="toolLogin">MEMBER SIGN IN</button>');modalBox.querySelector('#toolLogin')?.addEventListener('click',()=>showAccount('login'));return}
+    const joined=user.createdAt?new Date(user.createdAt).toLocaleDateString():'—';
+    openToolModal('PROFILE & SETTINGS','<div class="tool-detail-list"><div class="tool-detail-row"><span>USERNAME</span><b>'+escapeText(user.username)+'</b></div><div class="tool-detail-row"><span>ACCOUNT ROLE</span><b>'+escapeText(user.role.toUpperCase())+'</b></div><div class="tool-detail-row"><span>MEMBER SINCE</span><b>'+escapeText(joined)+'</b></div></div><p class="admin-note">Choose an accent theme. Your selection is saved in this browser on this device.</p><div class="theme-choice-grid">'+Object.keys(themeNames).map(name=>'<button class="theme-choice '+(document.querySelector(".theme-choice[data-theme="+name+"]")?.classList.contains("active")?'active':'')+'" type="button" data-tool-theme="'+name+'"><i style="--swatch:'+themeNames[name].gold+'"></i><span>'+name.toUpperCase()+'</span></button>').join('')+'</div>');
+    modalBox.querySelectorAll('[data-tool-theme]').forEach(button=>button.addEventListener('click',()=>{applyTheme(button.dataset.toolTheme);modalBox.querySelectorAll('[data-tool-theme]').forEach(b=>b.classList.toggle('active',b===button))}));return;
+  }
+  if(kind==='support'){
+    openToolModal('SUPPORT CENTRE','<div class="tool-faq"><b>HOW DO I CREATE AN ACCOUNT?</b><p>Choose Member Access, select Create an account, and follow the instructions. Use a unique password.</p></div><div class="tool-faq"><b>HOW DO I LINK WHATSAPP?</b><p>Sign in first, then choose QR code or Pairing Code in the Connection Centre. Only link your own account and never share a QR or pairing code.</p></div><div class="tool-faq"><b>WHY IS MY CONNECTION OFFLINE?</b><p>The API is hosted on a free service and may sleep or restart. Check service status, then try reconnecting.</p></div><div class="tool-faq"><b>WHERE CAN I GET HELP?</b><p>Use the official SUPREME community Telegram channel for general announcements. Do not post passwords, QR codes, pairing codes or private account details.</p></div><a class="btn outline" href="https://t.me/SUPREME_DOMAIN" target="_blank" rel="noopener">OPEN SUPREME COMMUNITY</a>');return;
+  }
+  if(kind==='guide'){
+    openToolModal('SUPREME GUIDE','<p class="admin-note">A quick help guide for the current website version. This is an offline guide, not a connected generative AI service.</p><div class="tool-faq"><b>ACCOUNT ACCESS</b><p>Register with a username and a strong password of at least 10 characters. Sign in to access your private tools.</p></div><div class="tool-faq"><b>PAIRING CODE</b><p>Enter your own WhatsApp number with its country code. Copy the one-time code and enter it in WhatsApp → Linked devices.</p></div><div class="tool-faq"><b>QR CONNECTION</b><p>Open WhatsApp Linked devices on your phone and scan the QR displayed in your private signed-in session.</p></div><div class="tool-faq"><b>ADMIN ACCESS</b><p>Administrative tools are restricted to accounts with an authorized admin role.</p></div><p class="safe-note">The full AI assistant requires a private server-side AI integration and is not activated yet.</p>');return;
+  }
+  if(kind==='status'){
+    openToolModal('LIVE SERVICE STATUS','<p class="admin-note" id="toolStatusText">Checking the website API and database…</p><div class="tool-detail-list" id="toolStatusList"></div><button class="btn outline" id="toolStatusRefresh" type="button">REFRESH STATUS</button>');
+    const refresh=async()=>{
+      const textNode=modalBox.querySelector('#toolStatusText');const list=modalBox.querySelector('#toolStatusList');if(!textNode||!list)return;
+      textNode.textContent='Checking services…';list.innerHTML='';
+      const checks=[['API SERVICE',API_BASE+'/api/health'],['PLATFORM STATUS',API_BASE+'/api/platform/status']];
+      const results=await Promise.all(checks.map(async([name,url])=>{try{const response=await fetch(url,{cache:'no-store'});const data=await response.json();return {name,ok:response.ok,detail:name==='API SERVICE'?(data.database==='connected'?'API responding · Database connected':'API responded'):data.maintenanceMode?'Maintenance mode enabled':'Operational'}}catch(_){return {name,ok:false,detail:'Not responding'}}}));
+      list.innerHTML=results.map(item=>'<div class="tool-detail-row"><span>'+item.name+'</span><b style="color:'+(item.ok?'#78d6a3':'#e5a36a')+'">'+(item.ok?'ONLINE':'UNAVAILABLE')+' · '+escapeText(item.detail)+'</b></div>').join('');
+      textNode.textContent='Last checked: '+new Date().toLocaleTimeString()+'. Free hosting may sleep between requests.';
+      const inline=document.getElementById('serviceStatusInline');if(inline)inline.innerHTML=results.every(x=>x.ok)?'<span class="status-dot"></span> API AND PLATFORM STATUS CHECKS PASSED.':'<span class="status-dot"></span> ONE OR MORE SERVICES DID NOT RESPOND.';
+    };
+    modalBox.querySelector('#toolStatusRefresh')?.addEventListener('click',refresh);refresh();return;
+  }
+  if(kind==='sessions'){
+    const user=await refreshSession();
+    if(!user){openToolModal('SIGN IN REQUIRED','<p class="admin-note">Sign in to manage your private WhatsApp session.</p><button class="btn gold" id="toolLogin">MEMBER SIGN IN</button>');modalBox.querySelector('#toolLogin')?.addEventListener('click',()=>showAccount('login'));return}
+    openToolModal('SESSION MANAGER','<p class="admin-note" id="sessionManagerStatus">Loading your private session…</p><div class="tool-detail-list" id="sessionManagerDetails"></div><button class="btn outline" id="sessionManagerRefresh" type="button">REFRESH SESSION</button> <button class="btn outline" id="sessionManagerDisconnect" type="button">DISCONNECT SESSION</button>');
+    const refresh=async()=>{
+      const status=modalBox.querySelector('#sessionManagerStatus');const details=modalBox.querySelector('#sessionManagerDetails');if(!status||!details)return;
+      try{const response=await fetch(API_BASE+'/api/whatsapp/session',{credentials:'include',cache:'no-store'});const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not load session.');const s=data.session||{};status.textContent='Your account session status is '+String(s.status||'unknown').toUpperCase()+'.';details.innerHTML='<div class="tool-detail-row"><span>STATUS</span><b>'+escapeText(String(s.status||'unknown').toUpperCase())+'</b></div><div class="tool-detail-row"><span>PHONE</span><b>'+escapeText(s.phoneMasked||'Not linked')+'</b></div><div class="tool-detail-row"><span>CONNECTED SINCE</span><b>'+escapeText(s.connectedAt?new Date(s.connectedAt).toLocaleString():'—')+'</b></div><div class="tool-detail-row"><span>LAST UPDATED</span><b>'+escapeText(s.updatedAt?new Date(s.updatedAt).toLocaleString():'—')+'</b></div><div class="tool-detail-row"><span>HOSTING</span><b>FREE · MAY SLEEP</b></div>'}
+      catch(error){status.textContent=error.message;details.innerHTML=''}
+    };
+    modalBox.querySelector('#sessionManagerRefresh')?.addEventListener('click',refresh);
+    modalBox.querySelector('#sessionManagerDisconnect')?.addEventListener('click',async()=>{const button=modalBox.querySelector('#sessionManagerDisconnect');if(!confirm('Disconnect your own WhatsApp session?'))return;button.disabled=true;try{const response=await fetch(API_BASE+'/api/whatsapp/session',{method:'DELETE',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}});const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not disconnect.');await refresh()}catch(error){modalBox.querySelector('#sessionManagerStatus').textContent=error.message}finally{button.disabled=false}});
+    refresh();return;
+  }
+  if(kind==='notifications'){
+    const user=await refreshSession();
+    if(!user){openToolModal('SIGN IN REQUIRED','<p class="admin-note">Sign in to view your private account notifications.</p><button class="btn gold" id="toolLogin">MEMBER SIGN IN</button>');modalBox.querySelector('#toolLogin')?.addEventListener('click',()=>showAccount('login'));return}
+    openToolModal('NOTIFICATION CENTRE','<p class="admin-note" id="notificationStatus">Loading your account activity…</p><div id="notificationItems" class="tool-detail-list"></div><button class="btn outline" id="notificationRefresh" type="button">REFRESH NOTIFICATIONS</button>');
+    const refresh=async()=>{
+      const status=modalBox.querySelector('#notificationStatus');const items=modalBox.querySelector('#notificationItems');if(!status||!items)return;
+      try{const response=await fetch(API_BASE+'/api/member/activity',{credentials:'include',cache:'no-store'});const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not load notifications.');const activity=data.activity||[];items.innerHTML=activity.map(item=>'<div class="tool-detail-row"><span>'+escapeText(item.type||'UPDATE')+' · '+escapeText(item.createdAt?new Date(item.createdAt).toLocaleString():'Now')+'</span><b>'+escapeText(item.message||'Account update')+'</b></div>').join('')||'<p class="admin-note">No new notifications.</p>';status.textContent='Showing '+activity.length+' account update(s). More notification types will appear as they are added.'}
+      catch(error){status.textContent=error.message}
+    };
+    modalBox.querySelector('#notificationRefresh')?.addEventListener('click',refresh);refresh();return;
+  }
+}
+document.querySelectorAll('[data-member-tool]').forEach(button=>button.addEventListener('click',()=>openMemberTool(button.dataset.memberTool)));
+/* Branded first-visit loading screen */
+(function(){
+  if(document.getElementById('supremeLoader'))return;
+  const loader=document.createElement('div');loader.id='supremeLoader';loader.className='loading-screen';loader.innerHTML='<div class="loading-core"><div class="loading-emblem">♤</div><div class="loading-caption">SUPREME MD / INITIALISING</div><div class="loading-line"></div></div>';
+  document.body.appendChild(loader);
+  const hide=()=>setTimeout(()=>loader.classList.add('is-hidden'),650);
+  if(document.readyState==='complete')hide();else window.addEventListener('load',hide,{once:true});
+})();
