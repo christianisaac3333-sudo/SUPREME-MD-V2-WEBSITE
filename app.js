@@ -468,3 +468,24 @@ document.querySelectorAll('[data-member-tool="ai"]').forEach(button=>{
     finally{button.dataset.aiLaunching='false';button.disabled=false}
   });
 });
+
+
+/* SUPREME AI button: isolated click binding with visible error handling */
+(function bindSupremeAiButton(){
+  const current=document.querySelector('[data-member-tool="ai"]');
+  if(!current)return;
+  const button=current.cloneNode(true);
+  current.replaceWith(button);
+  button.addEventListener('click',async event=>{
+    event.preventDefault();
+    if(button.dataset.opening==='yes')return;
+    button.dataset.opening='yes';
+    try{
+      await openMemberTool('ai');
+      if(!modal?.classList.contains('show'))throw new Error('The AI workspace did not open. Please refresh and try again.');
+    }catch(error){
+      openToolModal('SUPREME AI · CONNECTION ISSUE','<p class="admin-note">'+escapeText(error?.message||'The AI workspace could not open. Please try again.')+'</p><button class="btn gold" type="button" id="supremeAiRetry">TRY AGAIN</button>');
+      modalBox.querySelector('#supremeAiRetry')?.addEventListener('click',()=>{closeModal();button.click()});
+    }finally{delete button.dataset.opening}
+  });
+})();
