@@ -178,3 +178,17 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opac
 @media(max-width:900px){.member-tools-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.member-tools-grid{grid-template-columns:1fr}.tool-card{min-height:220px;padding:22px}}
 @media(prefers-reduced-motion:reduce){.loading-emblem,.loading-line:after{animation:none}}
+
+
+/* SUPREME LIVE DASHBOARD — premium status cards and activity timeline */
+.dashboard-refresh{margin-left:auto;padding:11px 13px;font-size:8px;white-space:nowrap}
+.metric .live-good{color:#78d6a3}
+.metric .pending{color:#d7b46f}
+.live-activity-list{display:grid;gap:0}
+.live-activity-row{display:flex;align-items:flex-start;gap:12px;padding:14px 4px;border-bottom:1px solid #ffffff12}
+.live-activity-row:last-child{border-bottom:0}
+.live-activity-mark{color:var(--gold);font-size:15px}
+.live-activity-row b,.live-activity-row small{display:block}
+.live-activity-row b{font-size:12px;color:#e8e1d5;font-weight:600}
+.live-activity-row small{font-size:9px;color:#8f887c;margin-top:5px;line-height:1.5}
+@media(max-width:600px){.dashboard-refresh{padding:9px 10px;font-size:7px}.dash-top{gap:10px;flex-wrap:wrap}.dash-top>div{min-width:0}}
