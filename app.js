@@ -62,7 +62,7 @@ document.querySelectorAll('.connect-option').forEach(button=>button.addEventList
       const codeBox=modalBox.querySelector('#waPairCode');
       const help=modalBox.querySelector('#waPairHelp');
       const phoneNumber=String(new FormData(form).get('phoneNumber')||'').replace(/[^0-9]/g,'');
-      if(!/^\\d{8,15}$/.test(phoneNumber)){status.textContent='Enter 8–15 digits including your country code.';return}
+      if(!/^\d{8,15}$/.test(phoneNumber)){status.textContent='Enter 8–15 digits including your country code.';return}
       submit.disabled=true;status.textContent='Requesting your private pairing code…';
       try{
         const response=await fetch(API_BASE+'/api/whatsapp/pair',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json','X-Requested-With':'SUPREME-MD-V2'},body:JSON.stringify({phoneNumber})});
