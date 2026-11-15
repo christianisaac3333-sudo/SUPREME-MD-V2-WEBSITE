@@ -320,7 +320,7 @@ async function openMemberTool(kind){
     modalBox.querySelector('#notificationRefresh')?.addEventListener('click',refresh);refresh();return;
   }
 }
-document.querySelectorAll('[data-member-tool]').forEach(button=>button.addEventListener('click',()=>openMemberTool(button.dataset.memberTool)));
+document.querySelectorAll('[data-member-tool]').forEach(button=>button.addEventListener('click',()=>{if(button.dataset.memberTool!=='ai')openMemberTool(button.dataset.memberTool)}));
 /* Branded first-visit loading screen */
 (function(){
   if(document.getElementById('supremeLoader'))return;
@@ -454,3 +454,17 @@ openMemberTool=async function(kind){
     finally{send.disabled=false;send.textContent='SEND MESSAGE';input.focus()}
   });
 };
+
+
+/* Reliable SUPREME AI launch: bind after all tool wrappers are installed. */
+document.querySelectorAll('[data-member-tool="ai"]').forEach(button=>{
+  button.addEventListener('click',async event=>{
+    event.preventDefault();
+    if(button.dataset.aiLaunching==='true')return;
+    button.dataset.aiLaunching='true';
+    button.disabled=true;
+    try{await openMemberTool('ai')}
+    catch(error){openToolModal('SUPREME AI / CONNECTION ERROR','<p class="admin-note">'+escapeText(error?.message||'The AI workspace could not open. Please try again.')+'</p>')}
+    finally{button.dataset.aiLaunching='false';button.disabled=false}
+  });
+});
