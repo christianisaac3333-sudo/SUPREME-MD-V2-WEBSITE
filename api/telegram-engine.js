@@ -1,6 +1,8 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const dns = require('node:dns');
+dns.setDefaultResultOrder('ipv4first');
 const fs = require('node:fs');
 const path = require('node:path');
 const sharp = require('sharp');
@@ -108,7 +110,17 @@ function startTelegramBot(pool) {
   bot = new TelegramBot(token, { polling: { autoStart: true, interval: 1000, params: { timeout: 25 } } });
 
   bot.on('polling_error', error => {
-    console.error('Telegram polling error:', String(error.message || 'unknown error').slice(0, 180));
+    const causes = error?.cause?.errors || error?.errors || [];
+    const details = Array.isArray(causes)
+      ? causes.map(item => String(item.code || item.message || 'network error').slice(0, 100)).join(', ')
+      : '';
+    console.error('Telegram polling error:', String(error.message || 'unknown error').slice(0, 180), details ? 'causes=' + details : '');
+  });
+
+  bot.getMe().then(identity => {
+    console.log('Telegram bot authenticated as @' + String(identity.username || 'unknown'));
+  }).catch(error => {
+    console.error('Telegram getMe check failed:', String(error.message || 'unknown error').slice(0, 180));
   });
 
   async function getLinkedMember(telegramId) {
