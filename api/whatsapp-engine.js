@@ -2,7 +2,7 @@
 
 // Experimental single-process WhatsApp Web session manager.
 // Auth state is encrypted before it reaches PostgreSQL. QR values remain in memory only.
-const { saveMemberSession, loadMemberSession, removeMemberSession } = require('./session-store');
+const { saveMemberSession, loadMemberSession, updateMemberSessionStatus, removeMemberSession } = require('./session-store');
 const QRCode = require('qrcode');
 const { parseCommand, commandReply } = require('./command-router');
 
@@ -151,6 +151,28 @@ async function startMemberSession(pool, userId) {
   }
 }
 
+async function restoreMemberSessions(pool) {
+  const result = await pool.query(
+    "SELECT user_id FROM whatsapp_sessions WHERE status IN ('connected','reconnecting','connecting') ORDER BY updated_at ASC LIMIT 10"
+  );
+  for (const row of result.rows) {
+    const id = String(row.user_id);
+    try {
+      const baileys = await import('@whiskeysockets/baileys');
+      const saved = await loadMemberSession(pool, id);
+      const restored = saved ? deserializeAuth(saved, baileys.BufferJSON) : null;
+      if (restored?.creds?.registered === true) {
+        await startMemberSession(pool, id);
+      } else {
+        await updateMemberSessionStatus(pool, id, 'disconnected');
+      }
+    } catch (error) {
+      console.error('WhatsApp session restore failed for member ' + id + ':', error.message);
+      try { await updateMemberSessionStatus(pool, id, 'needs_relink'); } catch (_) {}
+    }
+  }
+}
+
 async function getMemberQr(userId) {
   const entry = sessions.get(String(userId));
   if (!entry || !entry.qr) return null;
@@ -176,4 +198,4 @@ async function stopMemberSession(pool, userId) {
   return { status: 'disconnected' };
 }
 
-module.exports = { startMemberSession, getMemberQr, getMemberRuntimeStatus, stopMemberSession };
+module.exports = { startMemberSession, restoreMemberSessions, getMemberQr, getMemberRuntimeStatus, stopMemberSession };
