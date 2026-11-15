@@ -25,5 +25,8 @@ test('Telegram control panel lists all 36 commands', () => {
   const commands = menu.match(/^│ \/[a-z]+/gm) || [];
   assert.equal(commands.length, 36);
   assert.match(menu, /CONTROL PANEL/);
-  assert.match(menu, /SOCIAL & DISCOVERY/);\n  assert.match(menu, /\\/instagram/);\n  assert.match(menu, /\\/pinterest/);\n  assert.match(menu, /POWERED BY SUPREME DEV/);
+  assert.match(menu, /SOCIAL & DISCOVERY/);
+  assert.match(menu, /\/instagram/);
+  assert.match(menu, /\/pinterest/);
+  assert.match(menu, /POWERED BY SUPREME DEV/);
 });
