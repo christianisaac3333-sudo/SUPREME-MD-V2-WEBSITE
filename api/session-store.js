@@ -46,9 +46,17 @@ async function loadMemberSession(pool, userId) {
   }, id);
 }
 
+async function updateMemberSessionStatus(pool, userId, status) {
+  const id = normalizeUserId(userId);
+  if (!['disconnected','connecting','connected','reconnecting','needs_relink'].includes(status)) {
+    throw new TypeError('Invalid WhatsApp session status.');
+  }
+  await pool.query('UPDATE whatsapp_sessions SET status=$1, updated_at=NOW() WHERE user_id=$2', [status, id]);
+}
+
 async function removeMemberSession(pool, userId) {
   const id = normalizeUserId(userId);
   await pool.query('DELETE FROM whatsapp_sessions WHERE user_id=$1', [id]);
 }
 
-module.exports = { saveMemberSession, loadMemberSession, removeMemberSession };
+module.exports = { saveMemberSession, loadMemberSession, updateMemberSessionStatus, removeMemberSession };
