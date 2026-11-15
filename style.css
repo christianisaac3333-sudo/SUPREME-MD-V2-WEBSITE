@@ -259,3 +259,13 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opac
 /* Loading overlay failsafe: never leave the page covered */
 .loading-screen{animation:loaderFailsafe .7s ease 5s forwards}
 @keyframes loaderFailsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
+
+
+/* PROFILE BACK BUTTON + EXTENDED RARE ACCENT PALETTE */
+.tool-back{display:inline-flex;align-items:center;gap:8px;margin:0 0 16px;padding:10px 14px;background:#171713;border:1px solid var(--line);color:var(--pale);font:700 9px Orbitron;letter-spacing:1px;cursor:pointer}
+.tool-back:hover{border-color:var(--gold);color:var(--gold)}
+.theme-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0}
+.theme-choice-grid .theme-choice{border:1px solid #ffffff18;background:#11120f;border-radius:3px 12px 3px 12px}
+.theme-choice-grid .theme-choice i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--swatch);box-shadow:0 0 12px var(--swatch)}
+.theme-choice-grid .theme-choice.active{border-color:var(--gold);background:#b78c4b18}
+.theme-menu{max-height:70vh;overflow:auto}
