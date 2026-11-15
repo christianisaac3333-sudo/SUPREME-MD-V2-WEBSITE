@@ -98,13 +98,28 @@ function telegramMenu({ username, role, status, whatsappStatus, connected, capac
   ].join('\n');
 }
 
-function startTelegramBot(pool) {
+async function startTelegramBot(pool) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     console.log('Telegram bot disabled: TELEGRAM_BOT_TOKEN is not configured.');
     return null;
   }
   if (bot) return bot;
+
+  // Telegram getUpdates polling permits only one active poller per bot token.
+  // Hold a PostgreSQL session advisory lock for the entire polling lifetime,
+  // so overlapping Render deploy instances cannot create competing pollers.
+  const pollerLock = await pool.connect();
+  const lockResult = await pollerLock.query(
+    'SELECT pg_try_advisory_lock($1, $2) AS locked',
+    [1397769293, 2]
+  );
+  if (!lockResult.rows[0]?.locked) {
+    pollerLock.release();
+    console.log('Telegram polling standby: another API instance owns the poller lock.');
+    return null;
+  }
+  console.log('Telegram polling lock acquired by this API instance.');
 
   const TelegramBot = require('node-telegram-bot-api');
   bot = new TelegramBot(token, { polling: { autoStart: true, interval: 1000, params: { timeout: 25 } } });
