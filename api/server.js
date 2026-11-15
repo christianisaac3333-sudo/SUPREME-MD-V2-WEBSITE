@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const { startMemberSession, restoreMemberSessions, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
+const { startTelegramBot, createLinkCode } = require('./telegram-engine');
 
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
@@ -117,6 +118,24 @@ async function initializeDatabase() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (user_id, group_jid)
     );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS telegram_links (
+      user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      telegram_user_id VARCHAR(32) NOT NULL UNIQUE,
+      telegram_username VARCHAR(64),
+      linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS telegram_link_codes (
+      code_hash CHAR(64) PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS telegram_link_codes_user_idx
+      ON telegram_link_codes(user_id, expires_at);
   `);
 
   await pool.query(`
@@ -277,6 +296,58 @@ app.delete('/api/whatsapp/session', requireAuth, writeLimiter, async (req, res) 
   }
 });
 
+app.get('/api/telegram/status', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT telegram_username, linked_at FROM telegram_links WHERE user_id=$1',
+      [req.user.id]
+    );
+    const row = result.rows[0];
+    res.set('Cache-Control', 'no-store, private');
+    res.json({
+      enabled: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+      linked: Boolean(row),
+      username: row?.telegram_username || null,
+      linkedAt: row?.linked_at || null
+    });
+  } catch (error) {
+    console.error('Telegram link status error:', error.message);
+    res.status(500).json({ error: 'Could not load Telegram link status.' });
+  }
+});
+
+app.post('/api/telegram/link-code', requireAuth, writeLimiter, async (req, res) => {
+  if (!process.env.TELEGRAM_BOT_TOKEN) {
+    return res.status(503).json({ error: 'The shared Telegram bot is not configured yet.' });
+  }
+  try {
+    const linked = await pool.query('SELECT 1 FROM telegram_links WHERE user_id=$1', [req.user.id]);
+    if (linked.rowCount) return res.status(409).json({ error: 'A Telegram account is already linked. Unlink it first to connect another.' });
+    const { code, codeHash } = createLinkCode();
+    await pool.query('DELETE FROM telegram_link_codes WHERE user_id=$1 OR expires_at <= NOW()', [req.user.id]);
+    await pool.query(
+      'INSERT INTO telegram_link_codes (code_hash,user_id,expires_at) VALUES ($1,$2,NOW()+INTERVAL \'10 minutes\')',
+      [codeHash, req.user.id]
+    );
+    res.set('Cache-Control', 'no-store, private');
+    res.status(201).json({ code, expiresInSeconds: 600, instruction: 'Send /link followed by this code to @Supremecy_bot in a private chat. Keep it private.' });
+  } catch (error) {
+    console.error('Telegram link code creation failed:', error.message);
+    res.status(500).json({ error: 'Could not generate a Telegram link code.' });
+  }
+});
+
+app.delete('/api/telegram/link', requireAuth, writeLimiter, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM telegram_links WHERE user_id=$1', [req.user.id]);
+    await pool.query('DELETE FROM telegram_link_codes WHERE user_id=$1', [req.user.id]);
+    res.json({ ok: true, linked: false });
+  } catch (error) {
+    console.error('Telegram unlink failed:', error.message);
+    res.status(500).json({ error: 'Could not unlink Telegram right now.' });
+  }
+});
+
 app.get('/api/member/activity', requireAuth, async (req, res) => {
   res.json({ activity: [{ type: 'account', message: 'Your member account is active.', createdAt: req.user.created_at }] });
 });
@@ -421,6 +492,7 @@ initializeDatabase().then(async () => {
   if (/^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || '')) {
     await restoreMemberSessions(pool);
   }
+  if (process.env.TELEGRAM_BOT_TOKEN) startTelegramBot(pool);
   app.listen(PORT, '0.0.0.0', () => console.log('SUPREME MD V2 API listening on ' + PORT));
 }).catch(error => {
   console.error('Database initialization failed:', error.message);
