@@ -49,7 +49,7 @@ async function refreshSession(){
 }
 document.querySelectorAll('.connect-option').forEach(button=>button.addEventListener('click',async()=>{
   if(button.dataset.method==='Pairing code'){
-    showModal('PAIR YOUR WHATSAPP','Enter your own WhatsApp number with its country code. Pairing can take up to 45 seconds while WhatsApp prepares the request.');
+    showModal('PAIR YOUR WHATSAPP','Enter your own WhatsApp number with its country code. Pairing can take up to 45 seconds. The free API may take longer if it is waking up.');
     modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><p class="eyebrow">SUPREME MD V2 / PRIVATE SESSION</p><h3>PAIR WITH PHONE NUMBER</h3><p>Enter your number including country code, without the leading +. Example: 2348012345678.</p><form id="waPairForm" style="display:grid;gap:12px;margin:18px 0"><label for="waPairPhone">WHATSAPP PHONE NUMBER</label><input id="waPairPhone" name="phoneNumber" type="tel" inputmode="numeric" autocomplete="tel" placeholder="2348012345678" required minlength="8" maxlength="15" style="padding:13px;background:#10100f;border:1px solid var(--line);color:#fff"><button class="btn gold" id="waPairSubmit" type="submit">GENERATE PAIRING CODE</button></form><p id="waPairStatus" class="admin-note" role="status">Use your own number only. Never share your pairing code.</p><div id="waPairCode" style="display:none;text-align:center;padding:18px;background:#17150f;border:1px solid var(--line);font:700 25px Orbitron;letter-spacing:4px;color:var(--pale);user-select:all"></div><button class="btn gold" id="waPairCopy" type="button" style="display:none;margin:10px auto">COPY CODE</button><p id="waPairHelp" class="admin-note"></p><button class="btn" id="waPairCancel" type="button">CLOSE</button>';
     const closePair=()=>closeModal();
     modalBox.querySelector('.modal-close').addEventListener('click',closePair);
@@ -64,9 +64,9 @@ document.querySelectorAll('.connect-option').forEach(button=>button.addEventList
       const help=modalBox.querySelector('#waPairHelp');
       const phoneNumber=String(new FormData(form).get('phoneNumber')||'').replace(/[^0-9]/g,'');
       if(!/^\d{8,15}$/.test(phoneNumber)){status.textContent='Enter 8–15 digits including your country code.';return}
-      submit.disabled=true;status.textContent='Connecting securely to WhatsApp… this may take up to 45 seconds. Please keep this window open.';
+      submit.disabled=true;status.textContent='Connecting securely to WhatsApp… this may take up to 45 seconds, and longer if the free API is waking up. Keep this window open.';
       const controller=new AbortController();
-      const requestTimeout=setTimeout(()=>controller.abort(),50000);
+      const requestTimeout=setTimeout(()=>controller.abort(),100000);
       try{
         const response=await fetch(API_BASE+'/api/whatsapp/pair',{method:'POST',credentials:'include',signal:controller.signal,headers:{'Content-Type':'application/json','X-Requested-With':'SUPREME-MD-V2'},body:JSON.stringify({phoneNumber})});
         const data=await response.json().catch(()=>({}));
@@ -107,7 +107,7 @@ document.querySelectorAll('.connect-option').forEach(button=>button.addEventList
         };
         checkConnection();
       }catch(error){
-        status.textContent=error.name==='AbortError'?'The request took too long. Wait 30 seconds, then try again.':(error.message||'Pairing failed. Please try again.');
+        status.textContent=error.name==='AbortError'?'The request took too long. The free API may still be waking up. Wait a minute, then retry.':(error.message||'Pairing failed. Please try again.');
         submit.disabled=false;
       }finally{clearTimeout(requestTimeout)}
     });
