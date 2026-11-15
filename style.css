@@ -244,3 +244,18 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opac
 .supreme-ai-form-bottom .btn{padding:13px 16px}
 .supreme-ai-status{color:#9b907e;font-size:10px;line-height:1.5}
 @media(max-width:760px){.supreme-ai-workspace{grid-template-columns:1fr;min-height:0}.supreme-ai-sidebar{padding:12px}.supreme-ai-history-title{margin:14px 0 9px}.supreme-ai-conversation-list{display:flex;max-height:95px;overflow-x:auto;overflow-y:hidden}.supreme-ai-history-item{width:180px;min-width:180px}.supreme-ai-sidebar-foot{padding-top:12px}.supreme-ai-main{padding:13px}.supreme-ai-messages{min-height:220px;max-height:45vh}.supreme-ai-toolbar{align-items:stretch}.supreme-ai-model-label{width:100%}}
+
+
+/* SUPREME QUICK LAUNCH — bring every member tool to the top */
+.quick-command{padding-top:28px;padding-bottom:26px}
+.quick-command-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.quick-action{min-height:76px;transform:none!important;border-radius:4px 16px 4px 16px}
+.quick-action:hover{transform:translateY(-3px)!important}
+.quick-action>strong{display:none!important}
+@media(max-width:1050px){.quick-command-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.quick-command{padding:22px 5vw}.quick-command-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.quick-action{min-height:70px;padding:10px 9px}.quick-action b{font-size:8px}.quick-action small{font-size:9px}}
+@media(max-width:360px){.quick-command-grid{grid-template-columns:1fr}}
+
+/* Loading overlay failsafe: never leave the page covered */
+.loading-screen{animation:loaderFailsafe .7s ease 5s forwards}
+@keyframes loaderFailsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
