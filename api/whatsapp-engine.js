@@ -89,7 +89,8 @@ async function startMemberSession(pool, userId, options = {}) {
       for (const message of event.messages || []) {
         try {
           const chat = message?.key?.remoteJid;
-          if (!chat || chat === 'status@broadcast') continue;
+          if (!chat || chat === 'status@broadcast' || message.key?.fromMe) continue;
+          const isGroup = chat.endsWith('@g.us');
           const content = message.message || {};
           const body = content.conversation
             || content.extendedTextMessage?.text
@@ -106,13 +107,113 @@ async function startMemberSession(pool, userId, options = {}) {
           if (now - previous < 1200) continue;
           entry.lastCommandAt.set(cooldownKey, now);
           if (entry.lastCommandAt.size > 500) entry.lastCommandAt.clear();
+
+          const replyTo = async text => sock.sendMessage(chat, { text }, { quoted: message });
+          const sameJid = (a, b) => String(a || '').split('@')[0].split(':')[0] === String(b || '').split('@')[0].split(':')[0];
+          const getMetadata = async () => {
+            if (!isGroup) return null;
+            return sock.groupMetadata(chat);
+          };
+          const metadata = isGroup && ['groupinfo', 'admins', 'tagall', 'welcome', 'goodbye'].includes(command.name)
+            ? await getMetadata()
+            : null;
+          const senderIsAdmin = metadata?.participants?.some(p => sameJid(p.id, sender) && (p.admin === 'admin' || p.admin === 'superadmin'));
+          const requireGroup = () => {
+            if (isGroup) return true;
+            replyTo('This command can only be used inside a WhatsApp group.');
+            return false;
+          };
+          const requireAdmin = () => {
+            if (senderIsAdmin) return true;
+            replyTo('Only a group admin can use this command.');
+            return false;
+          };
+
+          if (command.name === 'groupinfo') {
+            if (!requireGroup()) continue;
+            const description = metadata.desc ? String(metadata.desc).slice(0, 240) : 'No description set';
+            await replyTo([
+              '♤ GROUP INFORMATION',
+              'Name: ' + (metadata.subject || 'Unknown'),
+              'Members: ' + (metadata.participants?.length || 0),
+              'Created: ' + (metadata.creation ? new Date(metadata.creation * 1000).toLocaleDateString('en-NG') : 'Unavailable'),
+              'Description: ' + description
+            ].join('\n'));
+            continue;
+          }
+
+          if (command.name === 'admins') {
+            if (!requireGroup()) continue;
+            const admins = (metadata.participants || []).filter(p => p.admin === 'admin' || p.admin === 'superadmin');
+            const lines = admins.map((p, i) => (i + 1) + '. @' + String(p.id).split('@')[0].split(':')[0]);
+            await sock.sendMessage(chat, {
+              text: '♤ GROUP ADMINS\n' + (lines.join('\n') || 'No admins were returned.'),
+              mentions: admins.map(p => p.id)
+            }, { quoted: message });
+            continue;
+          }
+
+          if (command.name === 'tagall') {
+            if (!requireGroup() || !requireAdmin()) continue;
+            const members = (metadata.participants || []).slice(0, 30);
+            const lines = members.map((p, i) => (i + 1) + '. @' + String(p.id).split('@')[0].split(':')[0]);
+            const omitted = Math.max(0, (metadata.participants || []).length - members.length);
+            await sock.sendMessage(chat, {
+              text: '♤ GROUP NOTICE\n' + (command.args.join(' ') || 'Attention everyone!') + '\n\n' +
+                lines.join('\n') + (omitted ? '\n…and ' + omitted + ' more members were not mentioned.' : ''),
+              mentions: members.map(p => p.id)
+            }, { quoted: message });
+            continue;
+          }
+
+          if (command.name === 'welcome' || command.name === 'goodbye') {
+            if (!requireGroup() || !requireAdmin()) continue;
+            const value = String(command.args[0] || '').toLowerCase();
+            if (!['on', 'off'].includes(value)) {
+              await replyTo('Usage: .' + command.name + ' on/off');
+              continue;
+            }
+            const column = command.name === 'welcome' ? 'welcome_enabled' : 'goodbye_enabled';
+            await pool.query(
+              `INSERT INTO whatsapp_group_settings (user_id, group_jid, ${column})
+               VALUES ($1, $2, $3)
+               ON CONFLICT (user_id, group_jid) DO UPDATE SET ${column}=EXCLUDED.${column}, updated_at=NOW()`,
+              [id, chat, value === 'on']
+            );
+            await replyTo((command.name === 'welcome' ? 'Welcome' : 'Goodbye') + ' messages are now ' + (value === 'on' ? 'ON' : 'OFF') + ' for this group.');
+            continue;
+          }
+
           const messageTimestamp = Number(message.messageTimestamp?.toNumber?.() ?? message.messageTimestamp) * 1000;
           const receivedAt = Number.isFinite(messageTimestamp) && messageTimestamp > 0 ? messageTimestamp : now;
           const reply = commandReply(command, { now, receivedAt, uptime: process.uptime() });
-          if (reply) await sock.sendMessage(chat, { text: reply }, { quoted: message });
+          if (reply) await replyTo(reply);
         } catch (error) {
           console.error('WhatsApp command handler failed:', error.message);
         }
+      }
+    });
+
+    sock.ev.on('group-participants.update', async update => {
+      try {
+        if (!update?.id || !['add', 'remove'].includes(update.action)) return;
+        const setting = await pool.query(
+          'SELECT welcome_enabled, goodbye_enabled FROM whatsapp_group_settings WHERE user_id=$1 AND group_jid=$2',
+          [id, update.id]
+        );
+        const row = setting.rows[0];
+        const enabled = update.action === 'add' ? row?.welcome_enabled : row?.goodbye_enabled;
+        if (!enabled) return;
+        const participants = (update.participants || []).slice(0, 10);
+        if (!participants.length) return;
+        const mentions = participants.map(jid => '@' + String(jid).split('@')[0].split(':')[0]);
+        const groupName = await sock.groupMetadata(update.id).then(meta => meta.subject).catch(() => 'the group');
+        const text = update.action === 'add'
+          ? 'Welcome to ' + groupName + ', ' + mentions.join(' ') + '! Please read the group description and follow the rules.'
+          : 'Goodbye ' + mentions.join(' ') + '.';
+        await sock.sendMessage(update.id, { text, mentions: participants });
+      } catch (error) {
+        console.error('WhatsApp group event handler failed:', error.message);
       }
     });
     sock.ev.on('creds.update', async update => {
