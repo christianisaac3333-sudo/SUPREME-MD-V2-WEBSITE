@@ -109,6 +109,17 @@ async function initializeDatabase() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS whatsapp_group_settings (
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      group_jid VARCHAR(128) NOT NULL,
+      welcome_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+      goodbye_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, group_jid)
+    );
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS platform_settings (
       setting_key VARCHAR(64) PRIMARY KEY,
       setting_value JSONB NOT NULL,
