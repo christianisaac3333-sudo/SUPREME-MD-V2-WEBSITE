@@ -106,6 +106,17 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS whatsapp_sessions_status_idx
       ON whatsapp_sessions(status);
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS platform_settings (
+      setting_key VARCHAR(64) PRIMARY KEY,
+      setting_value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    INSERT INTO platform_settings (setting_key, setting_value)
+    VALUES ('maintenance_mode', 'false'::jsonb)
+    ON CONFLICT (setting_key) DO NOTHING;
+  `);
 }
 
 app.get('/api/health', async (_req, res) => {
@@ -239,6 +250,64 @@ app.delete('/api/admin/members/:id', requireAuth, requireAdmin, async (req, res)
   } catch (error) {
     console.error('Member removal error:', error.message);
     res.status(500).json({ error: 'Could not remove this member.' });
+  }
+});
+
+app.get('/api/admin/analytics', requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const [users, sessions, signups] = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE role='admin')::int AS admins,
+        COUNT(*) FILTER (WHERE role='member')::int AS members,
+        COUNT(*) FILTER (WHERE last_login >= NOW() - INTERVAL '30 days')::int AS active_30d
+        FROM users`),
+      pool.query(`SELECT COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status='connected')::int AS connected,
+        COUNT(*) FILTER (WHERE status='needs_relink')::int AS needs_relink
+        FROM whatsapp_sessions`),
+      pool.query(`SELECT COUNT(*)::int AS last_7_days
+        FROM users WHERE created_at >= NOW() - INTERVAL '7 days'`)
+    ]);
+    res.json({ analytics: { users: users.rows[0], sessions: sessions.rows[0], signups: signups.rows[0], generatedAt: new Date().toISOString() } });
+  } catch (error) {
+    console.error('Analytics error:', error.message);
+    res.status(500).json({ error: 'Could not load platform analytics.' });
+  }
+});
+
+app.get('/api/admin/settings', requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT setting_key, setting_value, updated_at FROM platform_settings ORDER BY setting_key');
+    const settings = Object.fromEntries(result.rows.map(row => [row.setting_key, row.setting_value]));
+    res.json({
+      settings,
+      security: {
+        databaseConfigured: Boolean(DATABASE_URL),
+        jwtSecretConfigured: Boolean(JWT_SECRET && JWT_SECRET.length >= 32),
+        whatsappEncryptionKeyConfigured: /^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || ''),
+        whatsappEngineEnabled: false,
+        hostingPlan: 'free'
+      }
+    });
+  } catch (error) {
+    console.error('Settings read error:', error.message);
+    res.status(500).json({ error: 'Could not load secure settings.' });
+  }
+});
+
+app.patch('/api/admin/settings/maintenance', requireAuth, requireAdmin, writeLimiter, async (req, res) => {
+  if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'A true or false value is required.' });
+  try {
+    await pool.query(
+      `INSERT INTO platform_settings (setting_key, setting_value, updated_at)
+       VALUES ('maintenance_mode', $1::jsonb, NOW())
+       ON CONFLICT (setting_key) DO UPDATE SET setting_value=EXCLUDED.setting_value, updated_at=NOW()`,
+      [JSON.stringify(req.body.enabled)]
+    );
+    res.json({ ok: true, maintenanceMode: req.body.enabled });
+  } catch (error) {
+    console.error('Maintenance setting update error:', error.message);
+    res.status(500).json({ error: 'Could not update maintenance mode.' });
   }
 });
 
