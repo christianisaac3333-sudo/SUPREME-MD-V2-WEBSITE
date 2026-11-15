@@ -24,20 +24,20 @@ async function submitAuth(event){
     message.textContent='Welcome, '+data.user.username+'. Your '+data.user.role+' account is active.';
     password.length;form.reset();
     setTimeout(()=>{closeModal();refreshSession()},900);
-  }catch(error){message.textContent=error.message||'Could not reach the account service.';submit.disabled=false;submit.textContent=mode==='register'?'CREATE ACCOUNT ↗':'SIGN IN ↗'}
+  }catch(error){message.textContent=error.message||'Could not reach the account service.';submit.disabled=false;submit.textContent=mode==='register'?'CREATE ACCOUNT':'SIGN IN'}
 }
 function renderMemberDashboard(user){
   const main=document.querySelector('.dash-main');if(!main)return;
   let panel=document.getElementById('memberProfile');
   if(!panel){panel=document.createElement('section');panel.id='memberProfile';panel.className='member-profile';const top=main.querySelector('.dash-top');if(top)top.insertAdjacentElement('afterend',panel);else main.prepend(panel)}
-  if(!user){panel.innerHTML='<div class="member-profile-head"><b>MEMBER PROFILE</b><span>LOCKED</span></div><p>Sign in to load your private member dashboard and account details.</p><button class="btn gold" type="button" id="dashboardSignIn">SIGN IN TO CONTINUE ↗</button>';panel.querySelector('#dashboardSignIn')?.addEventListener('click',()=>showAccount('login'));return}
+  if(!user){panel.innerHTML='<div class="member-profile-head"><b>MEMBER PROFILE</b><span>LOCKED</span></div><p>Sign in to load your private member dashboard and account details.</p><button class="btn gold" type="button" id="dashboardSignIn">SIGN IN TO CONTINUE</button>';panel.querySelector('#dashboardSignIn')?.addEventListener('click',()=>showAccount('login'));return}
   const joined=user.createdAt?new Date(user.createdAt).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}):'—';
   panel.innerHTML='<div class="member-profile-head"><b>YOUR MEMBER PROFILE</b><span>SECURE ACCOUNT</span></div><div class="member-profile-grid"><div><small>USERNAME</small><strong>'+escapeText(user.username)+'</strong></div><div><small>ACCOUNT ROLE</small><strong>'+escapeText(user.role.toUpperCase())+'</strong></div><div><small>MEMBER SINCE</small><strong>'+escapeText(joined)+'</strong></div><div><small>ACCOUNT STATUS</small><strong class="member-active">ACTIVE</strong></div></div>';
 }
 function escapeText(value){return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
 async function refreshSession(){
   const accountButton=document.getElementById('accountBtn');
-  try{const response=await fetch(API_BASE+'/api/auth/me',{credentials:'include'});if(!response.ok){if(accountButton)accountButton.textContent='MEMBER ACCESS ↗';const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=true;renderMemberDashboard(null);return null}
+  try{const response=await fetch(API_BASE+'/api/auth/me',{credentials:'include'});if(!response.ok){if(accountButton)accountButton.textContent='MEMBER ACCESS';const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=true;renderMemberDashboard(null);return null}
     const data=await response.json();if(accountButton)accountButton.textContent='SIGNED IN: '+data.user.username.toUpperCase();
     const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=false;
     const greeting=document.querySelector('.dash-greeting');if(greeting)greeting.textContent='WELCOME, '+data.user.username.toUpperCase();
@@ -48,8 +48,8 @@ async function refreshSession(){
   }catch(_){renderMemberDashboard(null);return null}
 }
 document.querySelectorAll('.connect-option').forEach(button=>button.addEventListener('click',()=>showModal(button.dataset.method.toUpperCase()+' SELECTED','WhatsApp QR and pairing are not connected yet. Your account system is being activated first. Never share verification codes or session credentials.')));
-document.getElementById('accountBtn')?.addEventListener('click',()=>{showAccount('login');refreshSession().then(user=>{if(!user||!modal?.classList.contains('show'))return;modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><span class="modal-crown">⟡</span><p class="eyebrow">SUPREME MD V2 / MEMBER IDENTITY</p><h3>YOU ARE SIGNED IN</h3><p>Welcome back, '+user.username+'. Your '+user.role+' account is active.</p><button class="btn gold" id="modalSignOut" type="button">SIGN OUT ↗</button>';modalBox.querySelector('.modal-close').addEventListener('click',closeModal);modalBox.querySelector('#modalSignOut').addEventListener('click',logout)})});document.getElementById('signOutBtn')?.addEventListener('click',logout);
-async function logout(){try{await fetch(API_BASE+'/api/auth/logout',{method:'POST',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}})}finally{closeModal();const b=document.getElementById('accountBtn');if(b)b.textContent='MEMBER ACCESS ↗';const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=true;const g=document.querySelector('.dash-greeting');if(g)g.textContent='WELCOME TO YOUR SPACE'}}
+document.getElementById('accountBtn')?.addEventListener('click',()=>{showAccount('login');refreshSession().then(user=>{if(!user||!modal?.classList.contains('show'))return;modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><span class="modal-crown">⟡</span><p class="eyebrow">SUPREME MD V2 / MEMBER IDENTITY</p><h3>YOU ARE SIGNED IN</h3><p>Welcome back, '+user.username+'. Your '+user.role+' account is active.</p><button class="btn gold" id="modalSignOut" type="button">SIGN OUT</button>';modalBox.querySelector('.modal-close').addEventListener('click',closeModal);modalBox.querySelector('#modalSignOut').addEventListener('click',logout)})});document.getElementById('signOutBtn')?.addEventListener('click',logout);
+async function logout(){try{await fetch(API_BASE+'/api/auth/logout',{method:'POST',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}})}finally{closeModal();const b=document.getElementById('accountBtn');if(b)b.textContent='MEMBER ACCESS';const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=true;const g=document.querySelector('.dash-greeting');if(g)g.textContent='WELCOME TO YOUR SPACE'}}
 async function showAdminSuite(){
   if(!modalBox)return;
   modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><p class="eyebrow">SUPREME MD V2 / CONTROL CENTRE</p><h3>ADMIN COMMAND SUITE</h3><p id="adminStatus">Loading secure administration data…</p><div id="adminMetrics" class="admin-metrics"></div><div id="adminMembers" class="admin-members"></div>';
