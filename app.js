@@ -60,7 +60,7 @@ document.querySelectorAll('.connect-option').forEach(button=>button.addEventList
     if(!response.ok)throw new Error(data.error||'Could not start the connection.');
     modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><p class="eyebrow">SUPREME MD V2 / PRIVATE SESSION</p><h3>LINK YOUR WHATSAPP</h3><p id="waConnectStatus">Waiting for your personal QR code…</p><div id="waQrWrap" style="display:grid;place-items:center;min-height:210px;margin:16px auto"><span style="color:#bca477;font-size:12px">GENERATING QR…</span></div><p class="admin-note">Scan only from your own WhatsApp app. Never share this QR with anyone. This experimental free-hosted connection may stop when the API sleeps or restarts.</p><button class="btn gold" id="waDisconnect" type="button">CANCEL / DISCONNECT</button>';
     modalBox.querySelector('.modal-close').addEventListener('click',closeModal);
-    let stopped=false,shown=false;
+    let stopped=false,lastQr=null;
     const statusNode=modalBox.querySelector('#waConnectStatus');
     const qrWrap=modalBox.querySelector('#waQrWrap');
     const disconnect=async()=>{stopped=true;try{await fetch(API_BASE+'/api/whatsapp/session',{method:'DELETE',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}})}catch(_){}closeModal()};
@@ -82,7 +82,7 @@ document.querySelectorAll('.connect-option').forEach(button=>button.addEventList
         const qrResponse=await fetch(API_BASE+'/api/whatsapp/qr',{credentials:'include'});
         if(qrResponse.ok){
           const qrData=await qrResponse.json();
-          if(qrData.qr&&!shown){shown=true;qrWrap.innerHTML='<img alt="Private WhatsApp linking QR code" style="width:100%;max-width:280px;background:#fff;padding:10px;border-radius:8px" src="'+qrData.qr+'">';statusNode.textContent='QR READY · Open WhatsApp on your phone and scan this code.'}
+          if(qrData.qr&&qrData.qr!==lastQr){lastQr=qrData.qr;qrWrap.innerHTML='<img alt="Private WhatsApp linking QR code" style="width:100%;max-width:280px;background:#fff;padding:10px;border-radius:8px" src="'+qrData.qr+'">';statusNode.textContent='QR READY · Open WhatsApp on your phone and scan this code.'}
         }
       }catch(_){}
       if(!stopped)setTimeout(poll,2000);
