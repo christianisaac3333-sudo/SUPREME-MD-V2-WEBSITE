@@ -1,19 +1,22 @@
-# SUPREME MD V2 Website
+# SUPREME MD V2 — Elite frontend
 
-A standalone, responsive dark-and-gold website prototype for SUPREME MD V2.
+A standalone dark-and-gold responsive website experience for SUPREME MD V2.
 
-## Files
-- `index.html` — page structure and emblem artwork
-- `style.css` — responsive visual design and motion
-- `app.js` — navigation and preview dialogs
+## Included
+- Custom inline SVG crown crest and metallic brand system
+- Responsive landing page and feature overview
+- WhatsApp QR / pairing-code connection centre preview
+- Member dashboard layout with clearly marked placeholder metrics
+- Admin suite preview and member access preview
+- Mobile navigation, dialogs, reduced-motion support
 
-## Deploy on Render
-Create a **Static Site** connected to this repository.
+## Deploy
+Render Static Site:
 - Branch: `main`
 - Build command: `echo "Static site ready"`
 - Publish directory: `.`
 
-## Important
-This is a frontend prototype. Account registration/login, real WhatsApp QR pairing, pairing-code generation, and bot controls are not connected. Those features require a secure backend and must not be implemented by exposing bot credentials in browser JavaScript. The preview buttons do not collect or transmit phone numbers or secrets.
+## Important architecture boundary
+This repository and Render static site are separate from the existing SUPREME MD bot project. No existing bot files, services, sessions or credentials are modified.
 
-The website is separate from the existing SUPREME MD bot repository and does not modify it.
+This release is a **frontend-only upgrade**. It does not provide real account creation, authentication, QR generation, pairing-code generation, WhatsApp sessions, admin permissions or live analytics. Those require a separately deployed, secured backend, database and explicit integration design. Never place bot tokens, API keys or WhatsApp session files in browser code or this public repository.
