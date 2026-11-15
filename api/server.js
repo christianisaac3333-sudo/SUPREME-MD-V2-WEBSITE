@@ -186,13 +186,14 @@ app.get('/api/whatsapp/session', requireAuth, async (req, res) => {
       [req.user.id]
     );
     const session = result.rows[0];
+    const runtimeStatus = await getMemberRuntimeStatus(req.user.id);
     res.json({
       session: session ? {
-        status: (await getMemberRuntimeStatus(req.user.id)) || session.status,
+        status: runtimeStatus || session.status,
         phoneMasked: session.phone_masked,
         connectedAt: session.connected_at,
         updatedAt: session.updated_at
-      } : { status: 'disconnected', phoneMasked: null, connectedAt: null, updatedAt: null },
+      } : { status: runtimeStatus || 'disconnected', phoneMasked: null, connectedAt: null, updatedAt: null },
       hosting: { plan: 'free', alwaysOn: false, note: 'The free API may sleep. Connections are not guaranteed to remain online.' }
     });
   } catch (error) {
@@ -313,7 +314,7 @@ app.get('/api/admin/settings', requireAuth, requireAdmin, async (_req, res) => {
         databaseConfigured: Boolean(DATABASE_URL),
         jwtSecretConfigured: Boolean(JWT_SECRET && JWT_SECRET.length >= 32),
         whatsappEncryptionKeyConfigured: /^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || ''),
-        whatsappEngineEnabled: false,
+        whatsappEngineEnabled: /^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || ''),
         hostingPlan: 'free'
       }
     });
