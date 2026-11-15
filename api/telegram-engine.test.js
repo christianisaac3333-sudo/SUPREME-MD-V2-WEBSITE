@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createLinkCode } = require('./telegram-engine');
+const { createLinkCode, telegramMenu } = require('./telegram-engine');
 
 test('creates a one-time Telegram link code and stores only a SHA-256 digest', () => {
   const first = createLinkCode();
@@ -11,4 +11,19 @@ test('creates a one-time Telegram link code and stores only a SHA-256 digest', (
   assert.notEqual(first.code, first.codeHash);
   assert.notEqual(first.code, second.code);
   assert.notEqual(first.codeHash, second.codeHash);
+});
+
+test('Telegram control panel lists exactly 30 commands', () => {
+  const menu = telegramMenu({
+    username: 'SUPREME_TEST',
+    role: 'member',
+    status: 'ONLINE',
+    whatsappStatus: 'DISCONNECTED',
+    connected: 0,
+    capacity: 10
+  });
+  const commands = menu.match(/^│ \/[a-z]+/gm) || [];
+  assert.equal(commands.length, 30);
+  assert.match(menu, /CONTROL PANEL/);
+  assert.match(menu, /ADMIN ONLY/);
 });
