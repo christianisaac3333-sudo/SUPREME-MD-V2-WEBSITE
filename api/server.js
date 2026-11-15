@@ -297,7 +297,7 @@ app.post('/api/ai/conversations', requireAuth, writeLimiter, async (req, res) =>
   }
 });
 app.get('/api/ai/conversations/:id', requireAuth, async (req, res) => {
-  if (!/^\\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Conversation not found.' });
+  if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Conversation not found.' });
   try {
     const result = await pool.query(
       'SELECT id,title,provider,messages,created_at AS "createdAt",updated_at AS "updatedAt" FROM ai_conversations WHERE id=$1 AND user_id=$2',
@@ -312,7 +312,7 @@ app.get('/api/ai/conversations/:id', requireAuth, async (req, res) => {
   }
 });
 app.patch('/api/ai/conversations/:id', requireAuth, writeLimiter, async (req, res) => {
-  if (!/^\\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Conversation not found.' });
+  if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Conversation not found.' });
   const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-24) : null;
   if (!messages) return res.status(400).json({ error: 'Conversation messages are required.' });
   const safeMessages = messages.filter(item => item && ['user','assistant'].includes(item.role) && typeof item.content === 'string')
@@ -333,7 +333,7 @@ app.patch('/api/ai/conversations/:id', requireAuth, writeLimiter, async (req, re
   }
 });
 app.delete('/api/ai/conversations/:id', requireAuth, writeLimiter, async (req, res) => {
-  if (!/^\\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Conversation not found.' });
+  if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Conversation not found.' });
   try {
     const result = await pool.query('DELETE FROM ai_conversations WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
     if (!result.rowCount) return res.status(404).json({ error: 'Conversation not found.' });
