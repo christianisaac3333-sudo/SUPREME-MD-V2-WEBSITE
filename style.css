@@ -28,3 +28,23 @@ nav a:hover{border-color:var(--gold);background:#1b170f;color:var(--pale)}
 .access-actions{align-items:center}
 @media(max-width:900px){.topbar{padding-inline:4vw;gap:12px}nav{gap:7px}nav a{padding:0 9px;font-size:8px}.theme-wrap{margin-right:8px}}
 @media(max-width:700px){.topbar{padding:0 5vw}nav{gap:9px}nav a{width:100%;min-height:44px;justify-content:flex-start;padding:0 15px}.nav-member{justify-content:center}.theme-wrap{margin-left:auto;margin-right:5px}}
+
+
+/* Functional administrator control centre */
+.admin-launchers{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+.admin-launch{cursor:pointer;background:#171611;border:1px solid var(--line);color:var(--pale);padding:11px 13px;font:600 9px Orbitron,sans-serif;letter-spacing:1px;transition:.2s}
+.admin-launch:hover,.admin-launch:focus-visible{border-color:var(--gold);background:#292114;outline:none}
+.admin-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:16px 0}
+.admin-tabs button{flex:1;min-width:105px;padding:11px 8px;background:#141411;border:1px solid #ffffff22;color:#b9ad98;font:600 9px Orbitron,sans-serif;letter-spacing:.7px;cursor:pointer}
+.admin-tabs button.active{background:var(--gold);border-color:var(--gold);color:#111}
+.admin-content{max-height:54vh;overflow:auto;text-align:left}
+.admin-note{font-size:11px;line-height:1.7;color:#a99f8d}
+.settings-list{border:1px solid #ffffff18;margin:12px 0}
+.setting-row,.setting-control{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border-bottom:1px solid #ffffff15;font-size:11px}
+.setting-row b{font:700 9px Orbitron,sans-serif}
+.setting-row .ready{color:#75d5a2}.setting-row .pending{color:#e5b36a}
+.setting-control{align-items:flex-start;background:#15140f;border:1px solid var(--line);margin-top:14px}
+.setting-control>div{display:grid;gap:7px}.setting-control small{color:#a99f8d;line-height:1.6;max-width:330px}
+.switch-label{display:flex;align-items:center;gap:7px;color:var(--pale);font-size:10px;white-space:nowrap}
+.switch-label input{accent-color:var(--gold);width:17px;height:17px}
+@media(max-width:480px){.admin-tabs button{flex-basis:100%}.setting-control{flex-direction:column}.admin-launch{flex:1}}
