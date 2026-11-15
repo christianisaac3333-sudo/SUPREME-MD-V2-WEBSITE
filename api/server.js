@@ -37,7 +37,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'X-Requested-With', 'X-Bootstrap-Secret']
 }));
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '40kb' }));
 app.use(cookieParser());
 
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: 'draft-7', legacyHeaders: false, message: { error: 'Too many attempts. Please wait and try again.' } });
@@ -156,6 +156,20 @@ async function initializeDatabase() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_conversations (
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(100) NOT NULL DEFAULT 'New conversation',
+      provider VARCHAR(16) NOT NULL DEFAULT 'openai' CHECK (provider IN ('openai','gemini','claude')),
+      messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS ai_conversations_user_updated_idx
+      ON ai_conversations(user_id, updated_at DESC);
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS platform_settings (
       setting_key VARCHAR(64) PRIMARY KEY,
       setting_value JSONB NOT NULL,
@@ -255,6 +269,81 @@ app.get('/api/ai/models', requireAuth, (_req, res) => {
   res.set('Cache-Control', 'no-store, private');
   res.json({ providers: Object.entries(providers).map(([id, item]) => ({ id, label: item.label, model: item.model, enabled: item.enabled })) });
 });
+app.get('/api/ai/conversations', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, title, provider, created_at AS "createdAt", updated_at AS "updatedAt" FROM ai_conversations WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 50',
+      [req.user.id]
+    );
+    res.set('Cache-Control', 'no-store, private');
+    res.json({ conversations: result.rows });
+  } catch (error) {
+    console.error('Supreme AI conversation list failed:', error.message);
+    res.status(500).json({ error: 'Could not load saved conversations.' });
+  }
+});
+app.post('/api/ai/conversations', requireAuth, writeLimiter, async (req, res) => {
+  const provider = ['openai','gemini','claude'].includes(req.body?.provider) ? req.body.provider : 'openai';
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim().slice(0,100) : 'New conversation';
+  try {
+    const result = await pool.query(
+      'INSERT INTO ai_conversations (user_id,title,provider) VALUES ($1,$2,$3) RETURNING id,title,provider,created_at AS "createdAt",updated_at AS "updatedAt"',
+      [req.user.id, title || 'New conversation', provider]
+    );
+    res.status(201).json({ conversation: result.rows[0] });
+  } catch (error) {
+    console.error('Supreme AI conversation create failed:', error.message);
+    res.status(500).json({ error: 'Could not create a conversation.' });
+  }
+});
+app.get('/api/ai/conversations/:id', requireAuth, async (req, res) => {
+  if (!/^\\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Conversation not found.' });
+  try {
+    const result = await pool.query(
+      'SELECT id,title,provider,messages,created_at AS "createdAt",updated_at AS "updatedAt" FROM ai_conversations WHERE id=$1 AND user_id=$2',
+      [req.params.id, req.user.id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Conversation not found.' });
+    res.set('Cache-Control', 'no-store, private');
+    res.json({ conversation: result.rows[0] });
+  } catch (error) {
+    console.error('Supreme AI conversation load failed:', error.message);
+    res.status(500).json({ error: 'Could not open this conversation.' });
+  }
+});
+app.patch('/api/ai/conversations/:id', requireAuth, writeLimiter, async (req, res) => {
+  if (!/^\\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Conversation not found.' });
+  const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-24) : null;
+  if (!messages) return res.status(400).json({ error: 'Conversation messages are required.' });
+  const safeMessages = messages.filter(item => item && ['user','assistant'].includes(item.role) && typeof item.content === 'string')
+    .map(item => ({ role: item.role, content: item.content.slice(0,1200) }));
+  if (safeMessages.length !== messages.length) return res.status(400).json({ error: 'Conversation contains an invalid message.' });
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim().slice(0,100) : null;
+  const provider = ['openai','gemini','claude'].includes(req.body?.provider) ? req.body.provider : null;
+  try {
+    const result = await pool.query(
+      'UPDATE ai_conversations SET messages=$1::jsonb, title=COALESCE($2,title), provider=COALESCE($3,provider), updated_at=NOW() WHERE id=$4 AND user_id=$5 RETURNING id,title,provider,updated_at AS "updatedAt"',
+      [JSON.stringify(safeMessages), title || null, provider, req.params.id, req.user.id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Conversation not found.' });
+    res.json({ conversation: result.rows[0] });
+  } catch (error) {
+    console.error('Supreme AI conversation save failed:', error.message);
+    res.status(500).json({ error: 'Could not save this conversation.' });
+  }
+});
+app.delete('/api/ai/conversations/:id', requireAuth, writeLimiter, async (req, res) => {
+  if (!/^\\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Conversation not found.' });
+  try {
+    const result = await pool.query('DELETE FROM ai_conversations WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Conversation not found.' });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Supreme AI conversation delete failed:', error.message);
+    res.status(500).json({ error: 'Could not delete this conversation.' });
+  }
+});
+
 app.post('/api/ai/chat', requireAuth, aiLimiter, async (req, res) => {
   const provider = typeof req.body?.provider === 'string' ? req.body.provider : 'openai';
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
