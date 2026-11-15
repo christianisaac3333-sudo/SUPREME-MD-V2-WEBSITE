@@ -78,6 +78,12 @@ function publicUser(row) {
   return { id: row.id, username: row.username, role: row.role, createdAt: row.created_at };
 }
 
+async function recordActivity(userId, type, message) {
+  try {
+    await pool.query('INSERT INTO member_activity (user_id,event_type,message) VALUES ($1,$2,$3)', [userId, type, String(message).slice(0,180)]);
+  } catch (error) { console.error('Activity record failed:', error.message); }
+}
+
 async function initializeDatabase() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -88,6 +94,17 @@ async function initializeDatabase() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       last_login TIMESTAMPTZ
     );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS member_activity (
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      event_type VARCHAR(32) NOT NULL,
+      message VARCHAR(180) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS member_activity_user_created_idx ON member_activity(user_id, created_at DESC);
   `);
 
   // Encrypted, per-member WhatsApp session storage for the V2 beta.
@@ -173,6 +190,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     const hash = await bcrypt.hash(password, 12);
     const result = await pool.query('INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username, role, created_at', [username, hash]);
     issueSession(res, result.rows[0]);
+    await recordActivity(result.rows[0].id, 'account', 'Your SUPREME MD member account was created.');
     res.status(201).json({ user: publicUser(result.rows[0]) });
   } catch (error) {
     if (error.code === '23505') return res.status(409).json({ error: 'That username is already in use.' });
@@ -191,6 +209,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const valid = user ? await bcrypt.compare(password, user.password_hash) : false;
     if (!valid) return res.status(401).json({ error: 'Username or password is incorrect.' });
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+    await recordActivity(user.id, 'security', 'You signed in to your SUPREME MD account.');
     issueSession(res, user);
     res.json({ user: publicUser(user) });
   } catch (error) {
@@ -199,7 +218,26 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   }
 });
 
-app.post('/api/auth/logout', writeLimiter, (_req, res) => { clearSession(res); res.json({ ok: true }); });
+app.post('/api/auth/logout', requireAuth, writeLimiter, async (req, res) => {
+  await recordActivity(req.user.id, 'security', 'You signed out of your SUPREME MD account.');
+  clearSession(res);
+  res.json({ ok: true });
+});
+
+app.post('/api/auth/change-password', requireAuth, writeLimiter, async (req, res) => {
+  const currentPassword = typeof req.body?.currentPassword === 'string' ? req.body.currentPassword : '';
+  const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+  if (!currentPassword || currentPassword.length > 72 || newPassword.length < 10 || newPassword.length > 72) return res.status(400).json({ error: 'Enter your current password and a new password of 10–72 characters.' });
+  try {
+    const found = await pool.query('SELECT password_hash FROM users WHERE id=$1', [req.user.id]);
+    if (!found.rowCount || !(await bcrypt.compare(currentPassword, found.rows[0].password_hash))) return res.status(401).json({ error: 'Your current password is incorrect.' });
+    if (await bcrypt.compare(newPassword, found.rows[0].password_hash)) return res.status(400).json({ error: 'Choose a new password different from your current one.' });
+    const hash = await bcrypt.hash(newPassword, 12);
+    await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, req.user.id]);
+    await recordActivity(req.user.id, 'security', 'Your account password was changed.');
+    res.json({ ok: true, message: 'Password updated successfully.' });
+  } catch (error) { console.error('Password change error:', error.message); res.status(500).json({ error: 'Could not update your password right now.' }); }
+});
 app.get('/api/auth/me', requireAuth, (req, res) => res.json({ user: publicUser(req.user) }));
 
 async function requireAdmin(req, res, next) {
@@ -240,6 +278,7 @@ app.post('/api/whatsapp/connect', requireAuth, writeLimiter, async (req, res) =>
   }
   try {
     const result = await startMemberSession(pool, req.user.id);
+    await recordActivity(req.user.id, 'whatsapp', 'You started a WhatsApp connection request.');
     res.status(202).json({ ok: true, session: result, note: 'Experimental connection. Free hosting may sleep or restart.' });
   } catch (error) {
     console.error('WhatsApp connection start failed:', error.message);
@@ -260,6 +299,7 @@ app.post('/api/whatsapp/pair', requireAuth, writeLimiter, async (req, res) => {
   }
   try {
     const result = await startMemberSession(pool, req.user.id, { phoneNumber });
+    await recordActivity(req.user.id, 'whatsapp', 'You requested a WhatsApp pairing code.');
     if (!result.pairingCode) {
       return res.status(409).json({ error: 'A WhatsApp session is already running. Disconnect it before requesting a new pairing code.' });
     }
@@ -289,6 +329,7 @@ app.get('/api/whatsapp/qr', requireAuth, async (req, res) => {
 app.delete('/api/whatsapp/session', requireAuth, writeLimiter, async (req, res) => {
   try {
     await stopMemberSession(pool, req.user.id);
+    await recordActivity(req.user.id, 'whatsapp', 'You disconnected your WhatsApp session.');
     res.json({ ok: true, session: { status: 'disconnected' } });
   } catch (error) {
     console.error('WhatsApp session removal error:', error.message);
@@ -349,7 +390,11 @@ app.delete('/api/telegram/link', requireAuth, writeLimiter, async (req, res) => 
 });
 
 app.get('/api/member/activity', requireAuth, async (req, res) => {
-  res.json({ activity: [{ type: 'account', message: 'Your member account is active.', createdAt: req.user.created_at }] });
+  try {
+    const result = await pool.query('SELECT event_type AS type, message, created_at AS "createdAt" FROM member_activity WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50', [req.user.id]);
+    res.set('Cache-Control', 'no-store, private');
+    res.json({ activity: result.rows });
+  } catch (error) { console.error('Member activity error:', error.message); res.status(500).json({ error: 'Could not load account activity.' }); }
 });
 
 app.get('/api/admin/members', requireAuth, requireAdmin, async (_req, res) => {
