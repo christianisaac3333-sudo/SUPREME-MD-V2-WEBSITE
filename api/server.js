@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
-const { startMemberSession, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
+const { startMemberSession, restoreMemberSessions, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
 
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
@@ -379,7 +379,10 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Unexpected server error.' });
 });
 
-initializeDatabase().then(() => {
+initializeDatabase().then(async () => {
+  if (/^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || '')) {
+    await restoreMemberSessions(pool);
+  }
   app.listen(PORT, '0.0.0.0', () => console.log('SUPREME MD V2 API listening on ' + PORT));
 }).catch(error => {
   console.error('Database initialization failed:', error.message);
