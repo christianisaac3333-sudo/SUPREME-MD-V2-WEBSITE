@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
+const { startMemberSession, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
 
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
@@ -187,7 +188,7 @@ app.get('/api/whatsapp/session', requireAuth, async (req, res) => {
     const session = result.rows[0];
     res.json({
       session: session ? {
-        status: session.status,
+        status: (await getMemberRuntimeStatus(req.user.id)) || session.status,
         phoneMasked: session.phone_masked,
         connectedAt: session.connected_at,
         updatedAt: session.updated_at
@@ -200,18 +201,36 @@ app.get('/api/whatsapp/session', requireAuth, async (req, res) => {
   }
 });
 
-// Connection is deliberately unavailable until a separately tested session engine
-// and private credential-encryption key are configured.
-app.post('/api/whatsapp/connect', requireAuth, writeLimiter, (_req, res) => {
-  res.status(503).json({
-    error: 'WhatsApp linking is not enabled yet. The secure connection engine is still being prepared.',
-    code: 'WHATSAPP_ENGINE_NOT_READY'
-  });
+// Experimental QR connection. QR values are short-lived and returned only to
+// the authenticated member who owns this session.
+app.post('/api/whatsapp/connect', requireAuth, writeLimiter, async (req, res) => {
+  if (!/^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || '')) {
+    return res.status(503).json({ error: 'The private WhatsApp encryption key is not configured.', code: 'WHATSAPP_KEY_NOT_READY' });
+  }
+  try {
+    const result = await startMemberSession(pool, req.user.id);
+    res.status(202).json({ ok: true, session: result, note: 'Experimental connection. Free hosting may sleep or restart.' });
+  } catch (error) {
+    console.error('WhatsApp connection start failed:', error.message);
+    res.status(503).json({ error: 'Could not start the WhatsApp connection. Please try again later.' });
+  }
+});
+
+app.get('/api/whatsapp/qr', requireAuth, async (req, res) => {
+  try {
+    const qr = await getMemberQr(req.user.id);
+    if (!qr) return res.status(404).json({ error: 'QR code is not ready or has expired.' });
+    res.set('Cache-Control', 'no-store, private');
+    res.json({ qr });
+  } catch (error) {
+    console.error('WhatsApp QR rendering failed:', error.message);
+    res.status(500).json({ error: 'Could not prepare the QR code.' });
+  }
 });
 
 app.delete('/api/whatsapp/session', requireAuth, writeLimiter, async (req, res) => {
   try {
-    await pool.query('DELETE FROM whatsapp_sessions WHERE user_id = $1', [req.user.id]);
+    await stopMemberSession(pool, req.user.id);
     res.json({ ok: true, session: { status: 'disconnected' } });
   } catch (error) {
     console.error('WhatsApp session removal error:', error.message);
