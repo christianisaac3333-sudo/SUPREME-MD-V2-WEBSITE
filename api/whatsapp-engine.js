@@ -40,7 +40,7 @@ async function startMemberSession(pool, userId) {
   const restored = saved ? deserializeAuth(saved, BufferJSON) : null;
   const creds = restored?.creds || initAuthCreds();
   const keyData = restored?.keys && typeof restored.keys === 'object' ? restored.keys : {};
-  const entry = { status: 'connecting', qr: null, phoneMasked: null, startedAt: Date.now(), sock: null, persist: null, lastCommandAt: new Map() };
+  const entry = { status: 'connecting', qr: null, phoneMasked: null, startedAt: Date.now(), sock: null, persist: null, lastCommandAt: new Map(), menuSent: false };
   sessions.set(id, entry);
 
   let persistChain = Promise.resolve();
@@ -128,6 +128,17 @@ async function startMemberSession(pool, userId) {
         const jid = sock.user?.id || '';
         entry.phoneMasked = phoneMask(jid);
         await persist('connected', entry.phoneMasked);
+        if (!entry.menuSent && sock.user?.id) {
+          entry.menuSent = true;
+          const menu = commandReply({ name: 'menu' }, { now: Date.now(), uptime: process.uptime() });
+          const welcome = ['Welcome! Your WhatsApp is now connected to SUPREME MD V2.', '', menu].join('\n');
+          try {
+            await sock.sendMessage(sock.user.id, { text: welcome });
+          } catch (error) {
+            entry.menuSent = false;
+            console.error('WhatsApp welcome menu delivery failed:', error.message);
+          }
+        }
       }
       if (update.connection === 'close') {
         entry.qr = null;
