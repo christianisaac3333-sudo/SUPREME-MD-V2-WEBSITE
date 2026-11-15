@@ -27,75 +27,32 @@ function formatDuration(totalSeconds) {
 }
 
 function telegramMenu({ username, role, status, whatsappStatus, connected, capacity }) {
+  // Telegram photo captions are limited to 1,024 characters. Keep the full
+  // 36-command index compact so the image and commands appear in ONE message.
   return [
-    '╭─────────── ✦ ♤ ✦ ───────────╮',
-    '        ♤  SUPREME MD V2  ♤',
-    '╰─────────── ✦ ♤ ✦ ───────────╯',
+    '♤ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐌𝐃 𝐕𝟐 ♤',
+    '✦ CONTROL PANEL · ' + status + ' ✦',
+    'Member: ' + username + ' · Role: ' + String(role).toUpperCase(),
+    'WhatsApp: ' + whatsappStatus + ' · Sessions: ' + connected + '/' + capacity,
     '',
-    '       ✧  CONTROL PANEL  ✧',
-    '╭──────────────────────────────╮',
-    '│ ◈ Status     · ' + status,
-    '│ ◈ WhatsApp   · ' + whatsappStatus,
-    '│ ◈ Version    · ' + VERSION,
-    '│ ◈ Sessions   · ' + connected + ' / ' + capacity,
-    '│ ◈ Member     · ' + username,
-    '│ ◈ Role       · ' + String(role).toUpperCase(),
-    '╰──────────────────────────────╯',
+    '✧ GENERAL',
+    '/start /link /menu /help /alive /ping /info /uptime /time /date /version /server /health /website /support /rules /privacy /features',
     '',
-    '          ✧  COMMANDS  ✧',
-    '╭──────────────────────────────╮',
-    '│ ◈ GENERAL',
-    '│ /start       → Start bot',
-    '│ /link        → Link website account',
-    '│ /menu        → Show this menu',
-    '│ /help        → Command guide',
-    '│ /alive       → Bot status',
-    '│ /ping        → Response check',
-    '│ /info        → Platform details',
-    '│ /uptime      → Server uptime',
-    '│ /time        → Nigeria time',
-    '│ /date        → Nigeria date',
-    '│ /version     → Bot version',
-    '│ /server      → Hosting details',
-    '│ /health      → API and database',
-    '│ /website     → Open website',
-    '│ /support     → Help information',
-    '│ /rules       → Usage rules',
-    '│ /privacy     → Privacy summary',
-    '│ /features    → Feature list',
-    '│',
-    '│ ◈ MY ACCOUNT',
-    '│ /profile     → Your profile',
-    '│ /account     → Account details',
-    '│ /role        → Your member role',
-    '│ /myid        → Your Telegram ID',
-    '│',
-    '│ ◈ WHATSAPP',
-    '│ /connect     → Get a WhatsApp QR',
-    '│ /pair        → Pair with phone number',
-    '│ /status      → WhatsApp status',
-    '│ /session     → Session information',
-    '│ /disconnect  → Disconnect your session',
-    '│',
-    '│ ◈ SOCIAL & DISCOVERY',
-    '│ /instagram name → Public Instagram profile',
-    '│ /pinterest topic → Pinterest search',
-    '│ /youtube topic → YouTube search',
-    '│ /tiktok name → Public TikTok profile',
-    '│ /facebook name → Public Facebook profile',
-    '│ /spotify topic → Spotify search',
-    '│',
-    '│ ◈ ADMIN ONLY',
-    '│ /admin       → Admin panel guide',
-    '│ /stats       → Platform statistics',
-    '│ /members     → Member totals',
-    '╰──────────────────────────────╯',
+    '✧ MY ACCOUNT',
+    '/profile /account /role /myid',
     '',
-    '“With great power comes great responsibility.”',
+    '✧ WHATSAPP',
+    '/connect /pair /status /session /disconnect',
+    '',
+    '✧ SOCIAL & DISCOVERY',
+    '/instagram /pinterest /youtube /tiktok /facebook /spotify',
+    '',
+    '✧ ADMIN ONLY',
+    '/admin /stats /members',
     '',
     '♤ POWERED BY SUPREME DEV ♤',
     'CHRIS REMAINS SUPREME · SUPREME MD CLOUD'
-  ].join('\n');
+  ].join('\\n');
 }
 
 async function startTelegramBot(pool) {
@@ -155,19 +112,6 @@ async function startTelegramBot(pool) {
     ]);
     const whatsappStatus = runtime || session.rows[0]?.status || 'DISCONNECTED';
     const artwork = await sharp(fs.readFileSync(path.join(__dirname, 'assets', 'supreme-menu.svg'))).png().toBuffer();
-    await bot.sendPhoto(chatId, artwork, {
-      caption: '♤ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐌𝐃 𝐕𝟐  ♤\n' +
-        '✦ CONTROL PANEL · ONLINE ✦\n' +
-        'Member: ' + member.username + ' · Role: ' + String(member.role).toUpperCase() + '\n' +
-        'WhatsApp: ' + String(whatsappStatus).toUpperCase() + ' · Sessions: ' + counts.rows[0].connected + '/' + MAX_SESSIONS + '\n\n' +
-        '♤ POWERED BY SUPREME DEV ♤\nCHRIS REMAINS SUPREME · SUPREME MD CLOUD',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '🔗 LINK WHATSAPP', callback_data: 'wa_connect' }, { text: '📊 MY STATUS', callback_data: 'wa_status' }],
-          [{ text: '🌐 WEBSITE', url: WEBSITE }]
-        ]
-      }
-    });
     const menuText = telegramMenu({
       username: member.username,
       role: member.role,
@@ -176,8 +120,12 @@ async function startTelegramBot(pool) {
       connected: counts.rows[0].connected,
       capacity: MAX_SESSIONS
     });
-    await bot.sendMessage(chatId, menuText, {
-      disable_web_page_preview: true,
+    if (menuText.length > 1024) {
+      throw new Error('Telegram menu caption exceeds the 1,024-character photo caption limit.');
+    }
+    // One photo message: artwork first, the complete command list directly below it.
+    return bot.sendPhoto(chatId, artwork, {
+      caption: menuText,
       reply_markup: {
         inline_keyboard: [
           [{ text: '🔗 LINK WHATSAPP', callback_data: 'wa_connect' }, { text: '📊 MY STATUS', callback_data: 'wa_status' }],
