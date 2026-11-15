@@ -492,7 +492,10 @@ initializeDatabase().then(async () => {
   if (/^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || '')) {
     await restoreMemberSessions(pool);
   }
-  if (process.env.TELEGRAM_BOT_TOKEN) startTelegramBot(pool);
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    try { await startTelegramBot(pool); }
+    catch (error) { console.error('Telegram engine startup failed:', String(error.message || 'unknown error').slice(0, 180)); }
+  }
   app.listen(PORT, '0.0.0.0', () => console.log('SUPREME MD V2 API listening on ' + PORT));
 }).catch(error => {
   console.error('Database initialization failed:', error.message);
