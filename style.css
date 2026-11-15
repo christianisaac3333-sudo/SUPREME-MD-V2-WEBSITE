@@ -51,3 +51,12 @@ nav a:hover{border-color:var(--gold);background:#1b170f;color:var(--pale)}
 
 
 .maintenance-banner{position:relative;z-index:1000;padding:11px 16px;text-align:center;background:#4b3516;border-bottom:1px solid var(--gold);color:#ffedc9;font:600 9px Orbitron,sans-serif;letter-spacing:1px;line-height:1.6}
+
+.telegram-link-panel{margin-top:18px;padding:16px;background:#10110f;border:1px solid var(--line);text-align:left}
+.telegram-link-head{display:flex;justify-content:space-between;gap:10px;font:9px Orbitron;letter-spacing:1.2px;color:var(--pale)}
+.telegram-link-head span{color:#78cda5}
+.telegram-link-panel p{font-size:11px;line-height:1.7;color:#aaa}
+#telegramLinkActions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+#telegramCodeBox{margin-top:12px;padding:14px;background:#1a1711;border:1px solid var(--line)}
+#telegramCodeBox strong{display:block;font:700 22px Orbitron;letter-spacing:3px;color:var(--pale);overflow-wrap:anywhere}
+#telegramCodeBox p{font-size:11px;line-height:1.7;color:#c4b99f}
