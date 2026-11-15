@@ -13,7 +13,7 @@ test('creates a one-time Telegram link code and stores only a SHA-256 digest', (
   assert.notEqual(first.codeHash, second.codeHash);
 });
 
-test('Telegram control panel lists exactly 30 commands', () => {
+test('Telegram control panel lists all 36 commands', () => {
   const menu = telegramMenu({
     username: 'SUPREME_TEST',
     role: 'member',
@@ -23,7 +23,7 @@ test('Telegram control panel lists exactly 30 commands', () => {
     capacity: 10
   });
   const commands = menu.match(/^│ \/[a-z]+/gm) || [];
-  assert.equal(commands.length, 30);
+  assert.equal(commands.length, 36);
   assert.match(menu, /CONTROL PANEL/);
-  assert.match(menu, /ADMIN ONLY/);
+  assert.match(menu, /SOCIAL & DISCOVERY/);\n  assert.match(menu, /\\/instagram/);\n  assert.match(menu, /\\/pinterest/);\n  assert.match(menu, /POWERED BY SUPREME DEV/);
 });
