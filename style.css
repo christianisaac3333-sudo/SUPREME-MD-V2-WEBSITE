@@ -269,3 +269,6 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opac
 .theme-choice-grid .theme-choice i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--swatch);box-shadow:0 0 12px var(--swatch)}
 .theme-choice-grid .theme-choice.active{border-color:var(--gold);background:#b78c4b18}
 .theme-menu{max-height:70vh;overflow:auto}
+
+/* Expanded accent palette menu */
+.theme-menu{max-height:72vh;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--gold) transparent}.theme-choice-grid{max-height:55vh;overflow:auto;padding-right:3px}.tool-back{display:inline-flex;margin:0 0 14px;padding:10px 14px;font-size:9px}
