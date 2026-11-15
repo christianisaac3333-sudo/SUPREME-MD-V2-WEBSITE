@@ -119,6 +119,15 @@ async function initializeDatabase() {
   `);
 }
 
+app.get('/api/platform/status', async (_req, res) => {
+  try {
+    const result = await pool.query("SELECT setting_value FROM platform_settings WHERE setting_key='maintenance_mode'");
+    res.json({ maintenanceMode: result.rows[0]?.setting_value === true });
+  } catch (_) {
+    res.status(503).json({ error: 'Platform status unavailable.' });
+  }
+});
+
 app.get('/api/health', async (_req, res) => {
   try { await pool.query('SELECT 1'); res.json({ ok: true, service: 'SUPREME MD V2 API', database: 'connected' }); }
   catch (_) { res.status(503).json({ ok: false, database: 'unavailable' }); }
