@@ -329,3 +329,63 @@ document.querySelectorAll('[data-member-tool]').forEach(button=>button.addEventL
   const hide=()=>setTimeout(()=>loader.classList.add('is-hidden'),650);
   if(document.readyState==='complete')hide();else window.addEventListener('load',hide,{once:true});
 })();
+
+
+/* SUPREME LIVE DASHBOARD UPGRADE — real per-member connection state */
+async function refreshSupremeLiveDashboard(){
+  const shell=document.querySelector('.dash-main');
+  const metrics=document.querySelector('.metric-grid');
+  if(!shell||!metrics)return;
+  let refreshButton=shell.querySelector('#supremeDashboardRefresh');
+  if(!refreshButton){
+    const top=shell.querySelector('.dash-top');
+    if(top){
+      refreshButton=document.createElement('button');
+      refreshButton.id='supremeDashboardRefresh';
+      refreshButton.className='btn outline dashboard-refresh';
+      refreshButton.type='button';
+      refreshButton.textContent='REFRESH LIVE DATA';
+      top.appendChild(refreshButton);
+      refreshButton.addEventListener('click',refreshSupremeLiveDashboard);
+    }
+  }
+  const user=await refreshSession();
+  if(!user){
+    metrics.innerHTML='<div class="metric"><span>ACCOUNT</span><b class="pending">LOCKED</b><small>Sign in to load your data</small></div><div class="metric"><span>WHATSAPP</span><b class="pending">—</b><small>Private session status</small></div><div class="metric"><span>TELEGRAM</span><b class="pending">—</b><small>Account link status</small></div>';
+    const activity=document.querySelector('.activity-empty');
+    if(activity)activity.innerHTML='<span>♤</span><b>Your private dashboard is locked</b><small>Sign in to view your own connection status and account activity.</small>';
+    return;
+  }
+  if(refreshButton){refreshButton.disabled=true;refreshButton.textContent='REFRESHING…'}
+  const get=async path=>{
+    const response=await fetch(API_BASE+path,{credentials:'include',cache:'no-store'});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Request failed');
+    return data;
+  };
+  const [wa,tg,activity]=await Promise.all([
+    get('/api/whatsapp/session').catch(()=>null),
+    get('/api/telegram/status').catch(()=>null),
+    get('/api/member/activity').catch(()=>null)
+  ]);
+  const waState=wa?.session?.status||'unavailable';
+  const tgState=!tg?'unavailable':!tg.enabled?'not configured':tg.linked?'linked':'not linked';
+  const stateLabel=value=>String(value).replace(/_/g,' ').toUpperCase();
+  metrics.innerHTML=
+    '<div class="metric"><span>WHATSAPP SESSION</span><b class="'+(waState==='connected'?'live-good':'pending')+'">'+escapeText(stateLabel(waState))+'</b><small>'+(wa?.session?.phoneMasked?'Account · '+escapeText(wa.session.phoneMasked):'Your private device connection')+'</small></div>'+
+    '<div class="metric"><span>TELEGRAM LINK</span><b class="'+(tg?.linked?'live-good':'pending')+'">'+escapeText(stateLabel(tgState))+'</b><small>'+(tg?.username?'@'+escapeText(tg.username):'Shared bot account link')+'</small></div>'+
+    '<div class="metric"><span>MEMBER ACCOUNT</span><b class="live-good">'+escapeText(stateLabel(user.role))+'</b><small>Signed in as '+escapeText(user.username)+'</small></div>';
+  const panel=document.querySelector('.activity-panel');
+  if(panel){
+    let list=panel.querySelector('.live-activity-list');
+    if(!list){list=document.createElement('div');list.className='live-activity-list';panel.querySelector('.activity-empty')?.replaceWith(list);if(!panel.querySelector('.activity-empty'))panel.appendChild(list)}
+    const rows=activity?.activity||[];
+    list.innerHTML=rows.length?rows.slice(0,8).map(item=>'<div class="live-activity-row"><span class="live-activity-mark">✦</span><div><b>'+escapeText(item.message||'Account update')+'</b><small>'+escapeText(item.type||'UPDATE')+' · '+escapeText(item.createdAt?new Date(item.createdAt).toLocaleString():'Just now')+'</small></div></div>').join(''):'<div class="activity-empty"><span>⌁</span><b>No recent activity yet</b><small>New account and connection events will appear here as they are recorded.</small></div>';
+  }
+  const chip=document.querySelector('.demo-chip');
+  if(chip)chip.textContent='LIVE MEMBER DATA';
+  const caption=document.querySelector('.preview-caption');
+  if(caption)caption.textContent='LIVE MEMBER VIEW · PERSONAL CONNECTION STATUS · '+new Date().toLocaleTimeString();
+  if(refreshButton){refreshButton.disabled=false;refreshButton.textContent='REFRESH LIVE DATA'}
+}
+refreshSupremeLiveDashboard();
