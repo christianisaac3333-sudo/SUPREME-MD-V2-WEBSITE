@@ -426,7 +426,7 @@ async function startTelegramBot(pool) {
         '/website','/support','/rules','/privacy','/features','/profile','/account','/role','/myid',
         '/status','/session','/connect','/pair','/disconnect','/instagram','/pinterest','/youtube','/tiktok','/facebook','/spotify','/admin','/stats','/members'
       ]);
-      if (!supported.has(command)) return send('Unknown command. Send /menu to view all 30 commands.');
+      if (!supported.has(command)) return send('Unknown command. Send /menu to view all 36 commands.');
       await handleCommand(message, command, parts, member);
     } catch (error) {
       console.error('Telegram message handler failed:', error.message);
