@@ -41,6 +41,7 @@ function telegramMenu({ username, role, status, connected, capacity }) {
     '╭──────────────────────────────╮',
     '│ ◈ GENERAL',
     '│ /start       → Start bot',
+    '│ /link        → Link website account',
     '│ /menu        → Show this menu',
     '│ /help        → Command guide',
     '│ /alive       → Bot status',
