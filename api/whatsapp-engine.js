@@ -126,16 +126,29 @@ async function startMemberSession(pool, userId, options = {}) {
         entry.status = 'connecting';
         await persist('connecting');
       }
-      // Baileys must reach its initial connecting/QR event before pairing-code requests.
-      if (options.phoneNumber && !entry.pairingStarted && (update.qr || update.connection === 'connecting')) {
+      // Wait until Baileys has emitted its QR event (the socket is ready),
+      // then request a phone pairing code with bounded retries.
+      if (options.phoneNumber && update.qr && !entry.pairingStarted) {
         entry.pairingStarted = true;
-        try {
-          const code = await sock.requestPairingCode(options.phoneNumber);
-          entry.pairingCode = code;
-          resolvePairingCode(code);
-        } catch (error) {
-          rejectPairingCode(error);
-        }
+        (async () => {
+          let lastError;
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              await new Promise(resolve => setTimeout(resolve, 1400 + attempt * 900));
+              if (sessions.get(id) !== entry || entry.status !== 'connecting') {
+                throw new Error('The WhatsApp connection closed before a pairing code was ready.');
+              }
+              const code = await sock.requestPairingCode(options.phoneNumber);
+              entry.pairingCode = code;
+              resolvePairingCode(code);
+              return;
+            } catch (error) {
+              lastError = error;
+              if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1500));
+            }
+          }
+          rejectPairingCode(new Error('WhatsApp did not accept the pairing request after three attempts: ' + (lastError?.message || 'connection not ready')));
+        })();
       }
       if (update.connection === 'open') {
         entry.qr = null;
@@ -159,6 +172,7 @@ async function startMemberSession(pool, userId, options = {}) {
         entry.qr = null;
         const code = update.lastDisconnect?.error?.output?.statusCode;
         entry.status = code === DisconnectReason.loggedOut ? 'needs_relink' : 'disconnected';
+        if (options.phoneNumber && !entry.pairingCode) rejectPairingCode(new Error('WhatsApp disconnected before the pairing code was generated. Please retry.'));
         await persist(entry.status);
         if (sessions.get(id) === entry) sessions.delete(id);
       }
@@ -173,11 +187,18 @@ async function startMemberSession(pool, userId, options = {}) {
       }
     }, START_TIMEOUT_MS).unref?.();
     if (pairingCodePromise) {
-      const pairingCode = await Promise.race([
-        pairingCodePromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('WhatsApp did not become ready for a pairing code. Please try again.')), 20000))
-      ]);
-      return { status: entry.status, pairingCode };
+      let timeout;
+      try {
+        const pairingCode = await Promise.race([
+          pairingCodePromise,
+          new Promise((_, reject) => {
+            timeout = setTimeout(() => reject(new Error('WhatsApp is taking too long to prepare a pairing code. Please wait a moment and retry.')), 45000);
+          })
+        ]);
+        return { status: entry.status, pairingCode };
+      } finally {
+        if (timeout) clearTimeout(timeout);
+      }
     }
     return { status: entry.status };
   } catch (error) {
@@ -185,7 +206,8 @@ async function startMemberSession(pool, userId, options = {}) {
     if (failed?.sock) {
       try { failed.sock.end(new Error('Pairing request failed.')); } catch (_) {}
     }
-    sessions.delete(id);
+    if (failed?.persist) await failed.persist('disconnected');
+    if (sessions.get(id) === failed) sessions.delete(id);
     throw error;
   }
 }
