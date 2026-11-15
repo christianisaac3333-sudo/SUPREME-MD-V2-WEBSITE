@@ -237,7 +237,10 @@ app.post('/api/whatsapp/pair', requireAuth, writeLimiter, async (req, res) => {
     res.status(202).json({ ok: true, session: { status: result.status }, pairingCode: result.pairingCode });
   } catch (error) {
     console.error('WhatsApp pairing request failed:', error.message);
-    res.status(503).json({ error: 'Could not generate a pairing code. Check the number and try again, or use QR linking.' });
+    const message = /too long|timed out|not become ready/i.test(error.message || '')
+      ? 'WhatsApp is taking longer than expected. Wait 30 seconds, then retry the pairing code.'
+      : 'WhatsApp could not prepare a pairing code after retrying. Check the international number, wait 30 seconds, and try again.';
+    res.status(503).json({ error: message });
   }
 });
 
