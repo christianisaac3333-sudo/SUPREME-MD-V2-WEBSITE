@@ -209,3 +209,8 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opac
 .supreme-ai-form .btn{justify-self:start}
 .supreme-ai-status{font-size:10px;line-height:1.6;color:#b5a98f;min-height:16px}
 @media(max-width:600px){.supreme-ai-messages{max-height:280px}}
+
+.supreme-ai-model-label{font:8px Orbitron;color:var(--gold);letter-spacing:1px}
+.supreme-ai-provider{width:100%;padding:12px;background:#10110f;color:#eee;border:1px solid #c9a45a55;border-radius:3px 12px 3px 12px;font:11px 'DM Sans',sans-serif}
+.supreme-ai-provider:focus{outline:1px solid var(--gold)}
+.supreme-ai-provider option{background:#10110f;color:#eee}
