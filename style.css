@@ -140,3 +140,8 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opac
 @media(max-width:900px){.protocol-strip{grid-template-columns:48px repeat(3,minmax(0,1fr));gap:13px;padding:15px 5vw}.protocol-edition{grid-column:2/-1;padding:8px 0 0;border:0}.protocol-item b{font-size:8px}}
 @media(max-width:600px){.protocol-strip{grid-template-columns:40px 1fr 1fr;gap:14px 12px;padding:14px 5vw}.protocol-mark{width:34px;height:34px;font-size:18px}.protocol-item:nth-of-type(4){grid-column:2/-1}.protocol-item b{white-space:normal;line-height:1.4}.protocol-edition{grid-column:2/-1;font-size:7px}.quick-action:nth-child(2n){transform:none}.quick-action:nth-child(2n):hover{transform:translateY(-3px)}.hero:before{right:3vw;top:18px;font-size:6px}.hero-art:before{width:92%;height:72%}}
 @media(prefers-reduced-motion:reduce){.protocol-strip:after,.connection-orbit,.hero-art:before{animation:none}}
+
+
+/* Clean button faces: remove decorative arrow indicators */
+.quick-action>strong,.connect-option>.arrow,.btn>b,.quick-panel a>b{display:none!important}
+.quick-action{gap:12px}
