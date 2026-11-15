@@ -272,3 +272,27 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opac
 
 /* Expanded accent palette menu */
 .theme-menu{max-height:72vh;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--gold) transparent}.theme-choice-grid{max-height:55vh;overflow:auto;padding-right:3px}.tool-back{display:inline-flex;margin:0 0 14px;padding:10px 14px;font-size:9px}
+
+
+/* PROFILE & SETTINGS — full-height, touch-friendly scrolling and reliable exit */
+.modal.show{align-items:flex-start;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.modal-box{max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--gold) #17150f}
+.modal-box:focus{outline:none}
+.profile-settings-modal{max-width:560px;max-height:calc(100dvh - 28px);margin:auto;text-align:left;padding:clamp(22px,5vw,38px)}
+.profile-settings-modal>.modal-crown,.profile-settings-modal>.eyebrow,.profile-settings-modal>h3{text-align:center;display:block}
+.profile-settings-modal>.modal-close{position:sticky;top:0;z-index:3;float:right;margin:-12px -8px 0 0;padding:6px 10px;background:#12110ef2;border:1px solid #ffffff20;border-radius:10px;font-size:28px;line-height:1}
+.profile-settings-modal #memberToolBody{clear:both}
+.profile-settings-modal .tool-back{position:sticky;top:0;z-index:2;display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin:10px 0 14px;padding:10px 16px;background:#201b11;border:1px solid #b78c4b88;border-radius:8px;color:var(--pale);font:600 10px Orbitron;letter-spacing:1px;cursor:pointer}
+.profile-settings-modal .theme-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding-bottom:12px}
+.profile-settings-modal .theme-choice-grid .theme-choice{min-width:0;min-height:48px;display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #ffffff20;border-radius:8px;background:#171711;color:#e9dfcb}
+.profile-settings-modal .theme-choice-grid .theme-choice i{flex:0 0 16px;width:16px;height:16px;border-radius:50%;background:var(--swatch,var(--gold));box-shadow:0 0 12px var(--swatch,var(--gold))}
+.profile-settings-modal .theme-choice-grid .theme-choice span{font:600 9px Orbitron;letter-spacing:.4px;overflow-wrap:anywhere}
+.profile-settings-modal .theme-choice-grid .theme-choice.active{border-color:var(--gold);background:#c99b4c18}
+@media(max-width:600px){
+ .modal{padding:8px}
+ .modal-box{max-height:calc(100dvh - 16px);padding:24px 18px}
+ .profile-settings-modal{width:100%;max-height:calc(100dvh - 16px);padding:20px 16px}
+ .profile-settings-modal .tool-detail-row{align-items:flex-start;flex-wrap:wrap}
+ .profile-settings-modal .tool-detail-row b{max-width:65%;overflow-wrap:anywhere}
+ .profile-settings-modal .theme-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+}
