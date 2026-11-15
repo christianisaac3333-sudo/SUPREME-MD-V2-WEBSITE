@@ -445,8 +445,8 @@ openMemberTool=async function(kind){
     try{
       const data=await api('/api/ai/chat',{method:'POST',headers,body:JSON.stringify({provider,message,history:history.slice(-6)})});
       const assistant={role:'assistant',content:data.answer};history=[...nextHistory,assistant].slice(-24);addBubble(assistant);
-      if(!conversationId){conversationTitle=message.slice(0,70)||'New conversation';const created=await api('/api/ai/conversations',{method:'POST',headers,body:JSON.stringify({provider,title:conversationTitle})});conversationId=String(created.conversation.id);deleteButton.disabled=false}
-      await api('/api/ai/conversations/'+encodeURIComponent(conversationId),{method:'PATCH',headers,body:JSON.stringify({provider,title:conversationTitle,messages:history})});
+      if(!conversationId){conversationTitle=message.slice(0,70)||'New conversation';const created=await api('/api/ai/conversations',{method:'POST',headers,body:JSON.stringify({provider:data.provider||'openai',title:conversationTitle})});conversationId=String(created.conversation.id);deleteButton.disabled=false}
+      await api('/api/ai/conversations/'+encodeURIComponent(conversationId),{method:'PATCH',headers,body:JSON.stringify({provider:data.provider||'openai',title:conversationTitle,messages:history})});
       status.textContent='Saved · SUPREME AI · powered by '+data.providerLabel+' (automatic selection)';await refreshList();messages.scrollTop=messages.scrollHeight;
     }catch(error){status.textContent=error.message||'Could not reach Supreme AI.'}
     finally{send.disabled=false;send.textContent='SEND MESSAGE';input.focus()}
