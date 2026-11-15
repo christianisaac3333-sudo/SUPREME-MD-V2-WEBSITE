@@ -60,3 +60,40 @@ nav a:hover{border-color:var(--gold);background:#1b170f;color:var(--pale)}
 #telegramCodeBox{margin-top:12px;padding:14px;background:#1a1711;border:1px solid var(--line)}
 #telegramCodeBox strong{display:block;font:700 22px Orbitron;letter-spacing:3px;color:var(--pale);overflow-wrap:anywhere}
 #telegramCodeBox p{font-size:11px;line-height:1.7;color:#c4b99f}
+
+
+/* SUPREME MD V2 — command-first responsive refresh */
+.quick-command{position:relative;z-index:2;padding:34px 7vw 30px;background:radial-gradient(ellipse at 50% 0%,#b88a3b19,transparent 58%),#0b0c0b;border-bottom:1px solid #ffffff12}
+.quick-command-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:20px}
+.quick-command-head .eyebrow{margin:0 0 9px}
+.quick-command-head h2{font:700 clamp(22px,3vw,34px)/1.1 Cinzel,serif;letter-spacing:-.7px;margin:0}
+.quick-command-head h2 em{font-style:normal;color:var(--gold)}
+.launch-status{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid #ffffff18;color:#aaa18f;font:8px Orbitron,sans-serif;letter-spacing:1.2px;white-space:nowrap}
+.launch-status i{width:7px;height:7px;border-radius:50%;background:#6ed7a1;box-shadow:0 0 12px #6ed7a1}
+.quick-command-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.quick-action{min-width:0;min-height:86px;display:flex;align-items:center;gap:12px;padding:15px 13px;text-align:left;text-decoration:none;color:var(--white);background:linear-gradient(145deg,#191811,#10110f);border:1px solid #ffffff19;border-radius:17px 5px 17px 5px;cursor:pointer;transition:transform .22s,border-color .22s,background .22s;box-shadow:0 10px 24px #0003}
+.quick-action:hover{transform:translateY(-4px);border-color:var(--gold);background:linear-gradient(145deg,#282012,#12120f)}
+.quick-action .quick-icon{flex:0 0 34px;width:34px;height:34px;display:grid;place-items:center;border:1px solid #b78c4b55;border-radius:11px 3px 11px 3px;color:var(--gold);font-size:20px;background:#b78c4b12}
+.quick-action span:nth-child(2){min-width:0;display:block}
+.quick-action b,.quick-action small{display:block}
+.quick-action b{font:700 9px Orbitron,sans-serif;letter-spacing:.7px;line-height:1.5}
+.quick-action small{font:10px 'DM Sans',sans-serif;color:#928c82;margin-top:5px;line-height:1.4}
+.quick-action>strong{margin-left:auto;color:var(--gold);font-size:17px}
+.quick-command-foot{margin:15px 0 0;text-align:right;color:#76684f;font:8px Orbitron,sans-serif;letter-spacing:1.7px}
+.btn{border-radius:16px 4px 16px 4px;transition:transform .2s,filter .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 9px 24px #0005}
+.connect-option{border-radius:17px 5px 17px 5px}
+.theme-toggle,.theme-choice,.admin-launch,.menu-toggle{border-radius:12px 4px 12px 4px}
+@media(max-width:1050px){.quick-command-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){
+ .quick-command{padding:25px 5vw 23px}
+ .quick-command-head{align-items:flex-start;flex-direction:column;gap:12px}
+ .quick-command-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .quick-action{min-height:78px;padding:12px 10px;gap:9px}
+ .quick-action .quick-icon{flex-basis:30px;width:30px;height:30px;font-size:18px}
+ .quick-action b{font-size:8px;letter-spacing:.35px}
+ .quick-action small{font-size:9px}
+ .quick-command-foot{text-align:left;font-size:7px}
+}
+@media(max-width:390px){.quick-command-grid{grid-template-columns:1fr}.quick-action{min-height:68px}.quick-command-head h2{font-size:23px}}
+@media(prefers-reduced-motion:reduce){.quick-action,.btn{transition:none}.quick-action:hover,.btn:hover{transform:none}}
