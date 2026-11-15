@@ -345,15 +345,25 @@ app.delete('/api/ai/conversations/:id', requireAuth, writeLimiter, async (req, r
 });
 
 app.post('/api/ai/chat', requireAuth, aiLimiter, async (req, res) => {
-  const provider = typeof req.body?.provider === 'string' ? req.body.provider : 'openai';
+  const requestedProvider = typeof req.body?.provider === 'string' ? req.body.provider : 'auto';
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
   const history = Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [];
-  if (!['openai', 'gemini', 'claude'].includes(provider)) return res.status(400).json({ error: 'Choose a supported AI provider.' });
+  if (!['auto', 'openai', 'gemini', 'claude'].includes(requestedProvider)) return res.status(400).json({ error: 'Unsupported AI routing mode.' });
   if (!message || message.length > 2000) return res.status(400).json({ error: 'Write a message of 1–2,000 characters.' });
   const safeHistory = history.filter(item => item && ['user','assistant'].includes(item.role) && typeof item.content === 'string').map(item => ({ role: item.role, content: item.content.slice(0, 1000) }));
   const providers = supremeAiProviders();
+  const enabled = Object.entries(providers).filter(([, item]) => item.enabled);
+  if (!enabled.length) return res.status(503).json({ error: 'SUPREME AI is not configured yet. The platform administrator must add at least one private AI provider key.' });
+  const taskText = message.toLowerCase();
+  const preferred = requestedProvider === 'auto'
+    ? (/\\b(code|coding|program|debug|javascript|python|sql|api|software)\\b/.test(taskText) ? 'openai' : /\\b(write|story|creative|rewrite|essay|poem|tone|draft)\\b/.test(taskText) ? 'claude' : 'gemini')
+    : requestedProvider;
+  const ordered = requestedProvider === 'auto'
+    ? [preferred, ...enabled.map(([id]) => id).filter(id => id !== preferred)]
+    : [requestedProvider];
+  const provider = ordered.find(id => providers[id]?.enabled);
+  if (!provider) return res.status(503).json({ error: 'The selected AI engine is not configured.' });
   const selected = providers[provider];
-  if (!selected.enabled) return res.status(503).json({ error: selected.label + ' is not configured yet. Ask the platform administrator to configure its private API key.' });
   const conversation = [...safeHistory, { role: 'user', content: message }].slice(-13);
   try {
     let answer = '';
