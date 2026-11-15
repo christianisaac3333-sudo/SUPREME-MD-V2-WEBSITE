@@ -2,8 +2,14 @@
 
 const { encryptSessionState, decryptSessionState } = require('./session-crypto');
 
+function normalizeUserId(userId) {
+  const id = userId;
+  if (!Number.isSafeInteger(id) || id < 1) throw new TypeError('A valid member ID is required.');
+  return id;
+}
+
 async function saveMemberSession(pool, userId, state, metadata = {}) {
-  if (!Number.isSafeInteger(Number(userId)) || Number(userId) < 1) throw new TypeError('A valid member ID is required.');
+  userId = normalizeUserId(userId);
   const encrypted = encryptSessionState(state, Number(userId));
   const status = ['connecting','connected','reconnecting','needs_relink','disconnected'].includes(metadata.status)
     ? metadata.status : 'disconnected';
@@ -25,6 +31,7 @@ async function saveMemberSession(pool, userId, state, metadata = {}) {
 }
 
 async function loadMemberSession(pool, userId) {
+  userId = normalizeUserId(userId);
   const result = await pool.query(
     'SELECT encrypted_state, iv, auth_tag, key_version FROM whatsapp_sessions WHERE user_id=$1',
     [Number(userId)]
