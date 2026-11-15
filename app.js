@@ -49,8 +49,8 @@ async function refreshSession(){
 }
 document.querySelectorAll('.connect-option').forEach(button=>button.addEventListener('click',async()=>{
   if(button.dataset.method==='Pairing code'){
-    showModal('PAIR YOUR WHATSAPP','Enter your own WhatsApp number with its country code. The number and one-time code stay in your private signed-in session.');
-    modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><p class="eyebrow">SUPREME MD V2 / PRIVATE SESSION</p><h3>PAIR WITH PHONE NUMBER</h3><p>Enter your number including country code, without the leading +. Example format: 2348012345678.</p><form id="waPairForm" style="display:grid;gap:12px;margin:18px 0"><label for="waPairPhone">WHATSAPP PHONE NUMBER</label><input id="waPairPhone" name="phoneNumber" type="tel" inputmode="numeric" autocomplete="tel" placeholder="2348012345678" required minlength="8" maxlength="15" style="padding:13px;background:#10100f;border:1px solid var(--line);color:#fff"><button class="btn gold" id="waPairSubmit" type="submit">GENERATE PAIRING CODE</button></form><p id="waPairStatus" class="admin-note" role="status">Use your own number only. Never share your pairing code.</p><div id="waPairCode" style="display:none;text-align:center;padding:18px;background:#17150f;border:1px solid var(--line);font:700 25px Orbitron;letter-spacing:4px;color:var(--pale);user-select:all"></div><p id="waPairHelp" class="admin-note"></p><button class="btn" id="waPairCancel" type="button">CLOSE</button>';
+    showModal('PAIR YOUR WHATSAPP','Enter your own WhatsApp number with its country code. Pairing can take up to 45 seconds while WhatsApp prepares the request.');
+    modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><p class="eyebrow">SUPREME MD V2 / PRIVATE SESSION</p><h3>PAIR WITH PHONE NUMBER</h3><p>Enter your number including country code, without the leading +. Example: 2348012345678.</p><form id="waPairForm" style="display:grid;gap:12px;margin:18px 0"><label for="waPairPhone">WHATSAPP PHONE NUMBER</label><input id="waPairPhone" name="phoneNumber" type="tel" inputmode="numeric" autocomplete="tel" placeholder="2348012345678" required minlength="8" maxlength="15" style="padding:13px;background:#10100f;border:1px solid var(--line);color:#fff"><button class="btn gold" id="waPairSubmit" type="submit">GENERATE PAIRING CODE</button></form><p id="waPairStatus" class="admin-note" role="status">Use your own number only. Never share your pairing code.</p><div id="waPairCode" style="display:none;text-align:center;padding:18px;background:#17150f;border:1px solid var(--line);font:700 25px Orbitron;letter-spacing:4px;color:var(--pale);user-select:all"></div><button class="btn gold" id="waPairCopy" type="button" style="display:none;margin:10px auto">COPY CODE</button><p id="waPairHelp" class="admin-note"></p><button class="btn" id="waPairCancel" type="button">CLOSE</button>';
     const closePair=()=>closeModal();
     modalBox.querySelector('.modal-close').addEventListener('click',closePair);
     modalBox.querySelector('#waPairCancel').addEventListener('click',closePair);
@@ -60,19 +60,38 @@ document.querySelectorAll('.connect-option').forEach(button=>button.addEventList
       const submit=modalBox.querySelector('#waPairSubmit');
       const status=modalBox.querySelector('#waPairStatus');
       const codeBox=modalBox.querySelector('#waPairCode');
+      const copyButton=modalBox.querySelector('#waPairCopy');
       const help=modalBox.querySelector('#waPairHelp');
       const phoneNumber=String(new FormData(form).get('phoneNumber')||'').replace(/[^0-9]/g,'');
       if(!/^\d{8,15}$/.test(phoneNumber)){status.textContent='Enter 8–15 digits including your country code.';return}
-      submit.disabled=true;status.textContent='Requesting your private pairing code…';
+      submit.disabled=true;status.textContent='Connecting securely to WhatsApp… this may take up to 45 seconds. Please keep this window open.';
+      const controller=new AbortController();
+      const requestTimeout=setTimeout(()=>controller.abort(),50000);
       try{
-        const response=await fetch(API_BASE+'/api/whatsapp/pair',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json','X-Requested-With':'SUPREME-MD-V2'},body:JSON.stringify({phoneNumber})});
+        const response=await fetch(API_BASE+'/api/whatsapp/pair',{method:'POST',credentials:'include',signal:controller.signal,headers:{'Content-Type':'application/json','X-Requested-With':'SUPREME-MD-V2'},body:JSON.stringify({phoneNumber})});
         const data=await response.json().catch(()=>({}));
         if(response.status===401)throw new Error('Sign in before linking your WhatsApp.');
-        if(!response.ok)throw new Error(data.error||'Could not generate the pairing code.');
-        codeBox.style.display='block';codeBox.textContent=data.pairingCode||'';
-        status.textContent='PAIRING CODE READY · Enter this code in WhatsApp on your phone.';
-        help.textContent='On your phone: WhatsApp → Linked devices → Link a device → Link with phone number instead. Enter the code shown above. Do not share it with anyone.';
+        if(!response.ok)throw new Error(data.error||'WhatsApp could not prepare a pairing code. Wait a little and retry.');
+        if(!data.pairingCode)throw new Error('No pairing code was returned. Please retry.');
+        codeBox.style.display='block';codeBox.textContent=data.pairingCode;
+        copyButton.style.display='inline-flex';
+        status.textContent='PAIRING CODE READY · Copy it and enter it in WhatsApp now.';
+        help.textContent='On your phone: WhatsApp → Linked devices → Link a device → Link with phone number instead. Enter the code shown above. Keep it private.';
         form.style.display='none';
+        copyButton.addEventListener('click',async()=>{
+          try{
+            await navigator.clipboard.writeText(data.pairingCode);
+            copyButton.textContent='COPIED';
+            status.textContent='CODE COPIED · Return to WhatsApp and enter it.';
+          }catch(_){
+            status.textContent='Copy was blocked by your browser. Press and hold the code above to copy it.';
+            const selection=window.getSelection();
+            const range=document.createRange();
+            range.selectNodeContents(codeBox);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        });
         const checkConnection=async()=>{
           if(!modal?.classList.contains('show'))return;
           try{
@@ -80,14 +99,17 @@ document.querySelectorAll('.connect-option').forEach(button=>button.addEventList
             const stateData=await stateResponse.json().catch(()=>({}));
             if(stateData.session?.status==='connected'){
               status.textContent='CONNECTED · Your WhatsApp is linked. SUPREME MD will send your command menu to your own DM.';
-              codeBox.style.display='none';help.textContent='Your private session is now active.';
+              codeBox.style.display='none';copyButton.style.display='none';help.textContent='Your private session is now active.';
               return;
             }
           }catch(_){}
           setTimeout(checkConnection,2500);
         };
         checkConnection();
-      }catch(error){status.textContent=error.message||'Pairing failed. Please try QR linking.';submit.disabled=false}
+      }catch(error){
+        status.textContent=error.name==='AbortError'?'The request took too long. Wait 30 seconds, then try again.':(error.message||'Pairing failed. Please try again.');
+        submit.disabled=false;
+      }finally{clearTimeout(requestTimeout)}
     });
     return;
   }
