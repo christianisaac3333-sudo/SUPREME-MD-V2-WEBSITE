@@ -14,3 +14,17 @@
 @media(max-width:700px){.theme-wrap{margin-left:auto;margin-right:15px}.theme-toggle{padding:10px;font-size:8px}.theme-menu{right:-48px}.topbar{gap:8px}}
 
 .access-actions{display:flex;gap:12px;flex-wrap:wrap;position:relative;z-index:2}[hidden]{display:none!important}.password-wrap{width:100%}.password-wrap input{min-width:0}.password-toggle{border-radius:3px}
+
+/* Refined top navigation and consistent button alignment */
+.topbar{gap:22px}
+nav{gap:10px;flex-wrap:wrap;justify-content:flex-end}
+nav a{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 13px;border:1px solid #ffffff18;background:#11110f;font:600 9px Orbitron,sans-serif;letter-spacing:1px;white-space:nowrap;transition:.2s}
+nav a:hover{border-color:var(--gold);background:#1b170f;color:var(--pale)}
+.nav-cta,.nav-member{border-color:var(--gold);color:var(--pale)}
+.nav-member{background:linear-gradient(120deg,#e2c17e,#a77a36);color:#17110a!important;border-color:transparent}
+.btn{justify-content:center;min-height:48px;gap:0}
+.btn b,.connect-option .arrow,.quick-panel a b{display:none!important}
+.connect-option{width:100%;min-height:76px}
+.access-actions{align-items:center}
+@media(max-width:900px){.topbar{padding-inline:4vw;gap:12px}nav{gap:7px}nav a{padding:0 9px;font-size:8px}.theme-wrap{margin-right:8px}}
+@media(max-width:700px){.topbar{padding:0 5vw}nav{gap:9px}nav a{width:100%;min-height:44px;justify-content:flex-start;padding:0 15px}.nav-member{justify-content:center}.theme-wrap{margin-left:auto;margin-right:5px}}
