@@ -122,7 +122,8 @@ async function startTelegramBot(pool) {
   console.log('Telegram polling lock acquired by this API instance.');
 
   const TelegramBot = require('node-telegram-bot-api');
-  bot = new TelegramBot(token, { polling: { autoStart: true, interval: 1000, params: { timeout: 25 } } });
+  // Register all update handlers before polling, and clear any stale webhook so getUpdates can receive messages.
+  bot = new TelegramBot(token, { polling: false });
 
   bot.on('polling_error', error => {
     const causes = error?.cause?.errors || error?.errors || [];
@@ -434,6 +435,13 @@ async function startTelegramBot(pool) {
     }
   });
 
+  try {
+    await bot.deleteWebHook({ drop_pending_updates: false });
+    await bot.startPolling({ interval: 1000, params: { timeout: 25 } });
+  } catch (error) {
+    console.error('Telegram polling could not start:', String(error.message || 'unknown error').slice(0, 180));
+    throw error;
+  }
   console.log('SUPREME MD V2 Telegram bot polling started.');
   return bot;
 }
