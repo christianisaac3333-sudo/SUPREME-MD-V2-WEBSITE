@@ -356,7 +356,7 @@ app.post('/api/ai/chat', requireAuth, aiLimiter, async (req, res) => {
   if (!enabled.length) return res.status(503).json({ error: 'SUPREME AI is not configured yet. The platform administrator must add at least one private AI provider key.' });
   const taskText = message.toLowerCase();
   const preferred = requestedProvider === 'auto'
-    ? (/\\b(code|coding|program|debug|javascript|python|sql|api|software)\\b/.test(taskText) ? 'openai' : /\\b(write|story|creative|rewrite|essay|poem|tone|draft)\\b/.test(taskText) ? 'claude' : 'gemini')
+    ? (/\b(code|coding|program|debug|javascript|python|sql|api|software)\b/.test(taskText) ? 'openai' : /\b(write|story|creative|rewrite|essay|poem|tone|draft)\b/.test(taskText) ? 'claude' : 'gemini')
     : requestedProvider;
   const ordered = requestedProvider === 'auto'
     ? [preferred, ...enabled.map(([id]) => id).filter(id => id !== preferred)]
