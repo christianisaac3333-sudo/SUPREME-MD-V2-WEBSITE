@@ -48,3 +48,6 @@ nav a:hover{border-color:var(--gold);background:#1b170f;color:var(--pale)}
 .switch-label{display:flex;align-items:center;gap:7px;color:var(--pale);font-size:10px;white-space:nowrap}
 .switch-label input{accent-color:var(--gold);width:17px;height:17px}
 @media(max-width:480px){.admin-tabs button{flex-basis:100%}.setting-control{flex-direction:column}.admin-launch{flex:1}}
+
+
+.maintenance-banner{position:relative;z-index:1000;padding:11px 16px;text-align:center;background:#4b3516;border-bottom:1px solid var(--gold);color:#ffedc9;font:600 9px Orbitron,sans-serif;letter-spacing:1px;line-height:1.6}
