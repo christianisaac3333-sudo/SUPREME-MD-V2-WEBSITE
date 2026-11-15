@@ -435,11 +435,20 @@ async function startTelegramBot(pool) {
     }
   });
 
+  // Do not let a transient webhook API request crash the whole Telegram engine.
+  // If Telegram still has a webhook configured, polling_error below will report the
+  // conflict; otherwise polling can proceed normally.
   try {
     await bot.deleteWebHook({ drop_pending_updates: false });
+  } catch (error) {
+    console.error('Telegram webhook cleanup failed; attempting polling anyway:', String(error.message || 'network error').slice(0, 180));
+  }
+  try {
     await bot.startPolling({ interval: 1000, params: { timeout: 25 } });
   } catch (error) {
     console.error('Telegram polling could not start:', String(error.message || 'unknown error').slice(0, 180));
+    pollerLock.release();
+    bot = null;
     throw error;
   }
   console.log('SUPREME MD V2 Telegram bot polling started.');
