@@ -48,15 +48,47 @@ async function refreshSession(){
   }catch(_){renderMemberDashboard(null);return null}
 }
 document.querySelectorAll('.connect-option').forEach(button=>button.addEventListener('click',async()=>{
-  showModal('CHECKING YOUR CONNECTION','Checking your private member session…');
+  if(button.dataset.method!=='QR code'){
+    showModal('PAIRING CODE NOT READY','The experimental release currently supports QR linking only. Pairing-code support will be added after the QR session flow is tested.');
+    return;
+  }
+  showModal('STARTING SECURE CONNECTION','Preparing your private QR session. Keep this page open…');
   try{
-    const response=await fetch(API_BASE+'/api/whatsapp/session',{credentials:'include'});
-    const data=await response.json();
-    if(response.status===401){showModal('SIGN IN REQUIRED','Sign in to your SUPREME MD V2 account before viewing your own connection status. WhatsApp linking is not enabled yet.');return}
-    if(!response.ok)throw new Error(data.error||'Could not load connection status.');
-    const state=(data.session?.status||'disconnected').replaceAll('_',' ').toUpperCase();
-    showModal(button.dataset.method.toUpperCase()+' · '+state,'Your private session status is '+state+'. The QR and pairing engine is still being prepared, so no phone number or pairing code is needed now. Free hosting may sleep and cannot guarantee 24/7 connections.');
-  }catch(error){showModal('CONNECTION STATUS UNAVAILABLE',error.message||'Please try again later.')}
+    const response=await fetch(API_BASE+'/api/whatsapp/connect',{method:'POST',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}});
+    const data=await response.json().catch(()=>({}));
+    if(response.status===401){showModal('SIGN IN REQUIRED','Sign in to your SUPREME MD V2 account before linking your own WhatsApp.');return}
+    if(!response.ok)throw new Error(data.error||'Could not start the connection.');
+    modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><p class="eyebrow">SUPREME MD V2 / PRIVATE SESSION</p><h3>LINK YOUR WHATSAPP</h3><p id="waConnectStatus">Waiting for your personal QR code…</p><div id="waQrWrap" style="display:grid;place-items:center;min-height:210px;margin:16px auto"><span style="color:#bca477;font-size:12px">GENERATING QR…</span></div><p class="admin-note">Scan only from your own WhatsApp app. Never share this QR with anyone. This experimental free-hosted connection may stop when the API sleeps or restarts.</p><button class="btn gold" id="waDisconnect" type="button">CANCEL / DISCONNECT</button>';
+    modalBox.querySelector('.modal-close').addEventListener('click',closeModal);
+    let stopped=false,shown=false;
+    const statusNode=modalBox.querySelector('#waConnectStatus');
+    const qrWrap=modalBox.querySelector('#waQrWrap');
+    const disconnect=async()=>{stopped=true;try{await fetch(API_BASE+'/api/whatsapp/session',{method:'DELETE',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}})}catch(_){}closeModal()};
+    modalBox.querySelector('#waDisconnect').addEventListener('click',disconnect);
+    const poll=async()=>{
+      if(stopped||!modal?.classList.contains('show'))return;
+      try{
+        const statusResponse=await fetch(API_BASE+'/api/whatsapp/session',{credentials:'include'});
+        const statusData=await statusResponse.json().catch(()=>({}));
+        if(statusData.session?.status==='connected'){
+          stopped=true;statusNode.textContent='CONNECTED · Your WhatsApp session is active on this server instance.';
+          qrWrap.innerHTML='<span style="color:#78d6a3;font:700 13px Orbitron">CONNECTION ESTABLISHED</span>';
+          modalBox.querySelector('#waDisconnect').textContent='DISCONNECT WHATSAPP';
+          return;
+        }
+        if(statusData.session?.status==='needs_relink'){
+          stopped=true;statusNode.textContent='RELINK REQUIRED · Please start a new QR connection.';qrWrap.innerHTML='';return;
+        }
+        const qrResponse=await fetch(API_BASE+'/api/whatsapp/qr',{credentials:'include'});
+        if(qrResponse.ok){
+          const qrData=await qrResponse.json();
+          if(qrData.qr&&!shown){shown=true;qrWrap.innerHTML='<img alt="Private WhatsApp linking QR code" style="width:100%;max-width:280px;background:#fff;padding:10px;border-radius:8px" src="'+qrData.qr+'">';statusNode.textContent='QR READY · Open WhatsApp on your phone and scan this code.'}
+        }
+      }catch(_){}
+      if(!stopped)setTimeout(poll,2000);
+    };
+    poll();
+  }catch(error){showModal('CONNECTION NOT STARTED',error.message||'Please try again later.')}
 }));
 document.getElementById('accountBtn')?.addEventListener('click',()=>{showAccount('login');refreshSession().then(user=>{if(!user||!modal?.classList.contains('show'))return;modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><span class="modal-crown">⟡</span><p class="eyebrow">SUPREME MD V2 / MEMBER IDENTITY</p><h3>YOU ARE SIGNED IN</h3><p>Welcome back, '+user.username+'. Your '+user.role+' account is active.</p><button class="btn gold" id="modalSignOut" type="button">SIGN OUT</button>';modalBox.querySelector('.modal-close').addEventListener('click',closeModal);modalBox.querySelector('#modalSignOut').addEventListener('click',logout)})});document.getElementById('signOutBtn')?.addEventListener('click',logout);
 async function logout(){try{await fetch(API_BASE+'/api/auth/logout',{method:'POST',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}})}finally{closeModal();const b=document.getElementById('accountBtn');if(b)b.textContent='MEMBER ACCESS';const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=true;const g=document.querySelector('.dash-greeting');if(g)g.textContent='WELCOME TO YOUR SPACE'}}
