@@ -23,6 +23,7 @@
     "pg": "^8.13.1",
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "qrcode": "^1.5.4",
-    "node-telegram-bot-api": "^0.66.0"
+    "node-telegram-bot-api": "^0.66.0",
+    "sharp": "^0.34.3"
   }
 }
