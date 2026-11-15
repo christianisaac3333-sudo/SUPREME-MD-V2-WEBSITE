@@ -217,6 +217,30 @@ app.post('/api/whatsapp/connect', requireAuth, writeLimiter, async (req, res) =>
   }
 });
 
+// Pair a member's own WhatsApp account using its international phone number.
+app.post('/api/whatsapp/pair', requireAuth, writeLimiter, async (req, res) => {
+  if (!/^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || '')) {
+    return res.status(503).json({ error: 'The private WhatsApp encryption key is not configured.' });
+  }
+  const phoneNumber = typeof req.body?.phoneNumber === 'string'
+    ? req.body.phoneNumber.replace(/[^0-9]/g, '')
+    : '';
+  if (!/^\\d{8,15}$/.test(phoneNumber)) {
+    return res.status(400).json({ error: 'Enter a valid international number with country code, digits only.' });
+  }
+  try {
+    const result = await startMemberSession(pool, req.user.id, { phoneNumber });
+    if (!result.pairingCode) {
+      return res.status(409).json({ error: 'A WhatsApp session is already running. Disconnect it before requesting a new pairing code.' });
+    }
+    res.set('Cache-Control', 'no-store, private');
+    res.status(202).json({ ok: true, session: { status: result.status }, pairingCode: result.pairingCode });
+  } catch (error) {
+    console.error('WhatsApp pairing request failed:', error.message);
+    res.status(503).json({ error: 'Could not generate a pairing code. Check the number and try again, or use QR linking.' });
+  }
+});
+
 app.get('/api/whatsapp/qr', requireAuth, async (req, res) => {
   try {
     const qr = await getMemberQr(req.user.id);
