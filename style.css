@@ -12,3 +12,5 @@
 .theme-choice small{margin-left:auto;color:#716957}
 .theme-choice.active,.theme-choice:hover{background:#ffffff0a;color:var(--pale)}
 @media(max-width:700px){.theme-wrap{margin-left:auto;margin-right:15px}.theme-toggle{padding:10px;font-size:8px}.theme-menu{right:-48px}.topbar{gap:8px}}
+
+.access-actions{display:flex;gap:12px;flex-wrap:wrap;position:relative;z-index:2}[hidden]{display:none!important}.password-wrap{width:100%}.password-wrap input{min-width:0}.password-toggle{border-radius:3px}
