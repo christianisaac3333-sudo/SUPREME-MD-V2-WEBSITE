@@ -240,41 +240,77 @@ app.post('/api/auth/change-password', requireAuth, writeLimiter, async (req, res
 });
 app.get('/api/auth/me', requireAuth, (req, res) => res.json({ user: publicUser(req.user) }));
 
-// Private Supreme AI assistant. The provider key stays server-side and is never sent to browsers.
+// Multi-provider Supreme AI. Provider credentials remain server-side.
 const aiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 12, standardHeaders: 'draft-7', legacyHeaders: false });
+const AI_SYSTEM_PROMPT = 'You are Supreme AI inside SUPREME MD V2. Be helpful, accurate, clear and respectful. Assist with learning, programming, planning and everyday questions. Never claim to perform actions you have not performed. Protect privacy; never request passwords, API keys or authentication codes. For dangerous or high-stakes topics, keep guidance safe and general.';
+function supremeAiProviders() {
+  return {
+    openai: { label: 'OpenAI', model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', enabled: Boolean(process.env.OPENAI_API_KEY) },
+    gemini: { label: 'Gemini', model: process.env.GEMINI_MODEL || 'gemini-2.5-flash', enabled: Boolean(process.env.GEMINI_API_KEY) },
+    claude: { label: 'Claude', model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-5', enabled: Boolean(process.env.ANTHROPIC_API_KEY) }
+  };
+}
+app.get('/api/ai/models', requireAuth, (_req, res) => {
+  const providers = supremeAiProviders();
+  res.set('Cache-Control', 'no-store, private');
+  res.json({ providers: Object.entries(providers).map(([id, item]) => ({ id, label: item.label, model: item.model, enabled: item.enabled })) });
+});
 app.post('/api/ai/chat', requireAuth, aiLimiter, async (req, res) => {
+  const provider = typeof req.body?.provider === 'string' ? req.body.provider : 'openai';
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  const history = Array.isArray(req.body?.history) ? req.body.history.slice(-12) : [];
+  if (!['openai', 'gemini', 'claude'].includes(provider)) return res.status(400).json({ error: 'Choose a supported AI provider.' });
   if (!message || message.length > 2000) return res.status(400).json({ error: 'Write a message of 1–2,000 characters.' });
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'Supreme AI is not activated yet. The administrator must add the private AI key in the API service environment.' });
-  const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+  const safeHistory = history.filter(item => item && ['user','assistant'].includes(item.role) && typeof item.content === 'string').map(item => ({ role: item.role, content: item.content.slice(0, 4000) }));
+  const providers = supremeAiProviders();
+  const selected = providers[provider];
+  if (!selected.enabled) return res.status(503).json({ error: selected.label + ' is not configured yet. Ask the platform administrator to configure its private API key.' });
+  const conversation = [...safeHistory, { role: 'user', content: message }].slice(-13);
   try {
-    const upstream = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        instructions: 'You are Supreme AI, the helpful assistant inside SUPREME MD V2. Be clear, respectful, accurate and concise. Help with learning, programming, planning and everyday questions. Do not claim to have performed actions or accessed accounts unless the system explicitly confirms it. Protect privacy and never request passwords, API keys or authentication codes. For dangerous or high-stakes topics, give safe, general guidance and encourage appropriate trusted help.',
-        input: message,
-        max_output_tokens: 700
-      }),
-      signal: AbortSignal.timeout(25000)
-    });
-    const payload = await upstream.json().catch(() => ({}));
-    if (!upstream.ok) {
-      console.error('Supreme AI provider error:', upstream.status, String(payload.error?.code || payload.error?.type || 'request_failed'));
-      return res.status(upstream.status === 429 ? 429 : 502).json({ error: upstream.status === 429 ? 'Supreme AI is busy. Please wait a moment and try again.' : 'Supreme AI could not complete that request right now.' });
+    let answer = '';
+    if (provider === 'openai') {
+      const upstream = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: selected.model, instructions: AI_SYSTEM_PROMPT, input: conversation.map(item => ({ role: item.role, content: item.content })), max_output_tokens: 1000 }),
+        signal: AbortSignal.timeout(30000)
+      });
+      const payload = await upstream.json().catch(() => ({}));
+      if (!upstream.ok) throw Object.assign(new Error('OpenAI request failed'), { status: upstream.status });
+      answer = (payload.output || []).flatMap(item => item.content || []).filter(item => item.type === 'output_text').map(item => item.text).join('\n').trim();
+    } else if (provider === 'claude') {
+      const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: selected.model, max_tokens: 1000, system: AI_SYSTEM_PROMPT, messages: conversation.map(item => ({ role: item.role, content: item.content })) }),
+        signal: AbortSignal.timeout(30000)
+      });
+      const payload = await upstream.json().catch(() => ({}));
+      if (!upstream.ok) throw Object.assign(new Error('Claude request failed'), { status: upstream.status });
+      answer = (payload.content || []).filter(item => item.type === 'text').map(item => item.text).join('\n').trim();
+    } else {
+      const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(selected.model) + ':generateContent?key=' + encodeURIComponent(process.env.GEMINI_API_KEY), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: AI_SYSTEM_PROMPT }] },
+          contents: conversation.map(item => ({ role: item.role === 'assistant' ? 'model' : 'user', parts: [{ text: item.content }] })),
+          generationConfig: { maxOutputTokens: 1000 }
+        }),
+        signal: AbortSignal.timeout(30000)
+      });
+      const payload = await upstream.json().catch(() => ({}));
+      if (!upstream.ok) throw Object.assign(new Error('Gemini request failed'), { status: upstream.status });
+      answer = (payload.candidates?.[0]?.content?.parts || []).map(item => item.text || '').join('\n').trim();
     }
-    const answer = (payload.output || []).flatMap(item => item.content || []).filter(item => item.type === 'output_text').map(item => item.text).join('\n').trim();
-    if (!answer) return res.status(502).json({ error: 'Supreme AI returned an empty response. Please try again.' });
+    if (!answer) return res.status(502).json({ error: selected.label + ' returned an empty response. Please try again.' });
     res.set('Cache-Control', 'no-store, private');
-    res.json({ answer, model });
+    res.json({ answer, provider, providerLabel: selected.label, model: selected.model });
   } catch (error) {
-    console.error('Supreme AI request failed:', String(error.name || 'Error'));
-    res.status(504).json({ error: 'Supreme AI timed out. Please try again.' });
+    console.error('Supreme AI provider request failed:', provider, error.status || error.name || 'Error');
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') return res.status(504).json({ error: selected.label + ' timed out. Please try again.' });
+    if (error.status === 429) return res.status(429).json({ error: selected.label + ' is busy. Please wait and try again.' });
+    res.status(502).json({ error: selected.label + ' could not complete that request. Check its API configuration and try again.' });
   }
 });
-
 
 async function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
