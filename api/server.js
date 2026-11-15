@@ -258,10 +258,10 @@ app.get('/api/ai/models', requireAuth, (_req, res) => {
 app.post('/api/ai/chat', requireAuth, aiLimiter, async (req, res) => {
   const provider = typeof req.body?.provider === 'string' ? req.body.provider : 'openai';
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
-  const history = Array.isArray(req.body?.history) ? req.body.history.slice(-12) : [];
+  const history = Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [];
   if (!['openai', 'gemini', 'claude'].includes(provider)) return res.status(400).json({ error: 'Choose a supported AI provider.' });
   if (!message || message.length > 2000) return res.status(400).json({ error: 'Write a message of 1–2,000 characters.' });
-  const safeHistory = history.filter(item => item && ['user','assistant'].includes(item.role) && typeof item.content === 'string').map(item => ({ role: item.role, content: item.content.slice(0, 4000) }));
+  const safeHistory = history.filter(item => item && ['user','assistant'].includes(item.role) && typeof item.content === 'string').map(item => ({ role: item.role, content: item.content.slice(0, 1000) }));
   const providers = supremeAiProviders();
   const selected = providers[provider];
   if (!selected.enabled) return res.status(503).json({ error: selected.label + ' is not configured yet. Ask the platform administrator to configure its private API key.' });
@@ -288,8 +288,8 @@ app.post('/api/ai/chat', requireAuth, aiLimiter, async (req, res) => {
       if (!upstream.ok) throw Object.assign(new Error('Claude request failed'), { status: upstream.status });
       answer = (payload.content || []).filter(item => item.type === 'text').map(item => item.text).join('\n').trim();
     } else {
-      const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(selected.model) + ':generateContent?key=' + encodeURIComponent(process.env.GEMINI_API_KEY), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(selected.model) + ':generateContent, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: AI_SYSTEM_PROMPT }] },
           contents: conversation.map(item => ({ role: item.role === 'assistant' ? 'model' : 'user', parts: [{ text: item.content }] })),
