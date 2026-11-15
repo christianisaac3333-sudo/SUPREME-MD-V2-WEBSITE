@@ -60,24 +60,47 @@ document.querySelectorAll('.connect-option').forEach(button=>button.addEventList
 }));
 document.getElementById('accountBtn')?.addEventListener('click',()=>{showAccount('login');refreshSession().then(user=>{if(!user||!modal?.classList.contains('show'))return;modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><span class="modal-crown">⟡</span><p class="eyebrow">SUPREME MD V2 / MEMBER IDENTITY</p><h3>YOU ARE SIGNED IN</h3><p>Welcome back, '+user.username+'. Your '+user.role+' account is active.</p><button class="btn gold" id="modalSignOut" type="button">SIGN OUT</button>';modalBox.querySelector('.modal-close').addEventListener('click',closeModal);modalBox.querySelector('#modalSignOut').addEventListener('click',logout)})});document.getElementById('signOutBtn')?.addEventListener('click',logout);
 async function logout(){try{await fetch(API_BASE+'/api/auth/logout',{method:'POST',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}})}finally{closeModal();const b=document.getElementById('accountBtn');if(b)b.textContent='MEMBER ACCESS';const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=true;const g=document.querySelector('.dash-greeting');if(g)g.textContent='WELCOME TO YOUR SPACE'}}
-async function showAdminSuite(){
+async function showAdminSuite(initialTab='roles'){
   if(!modalBox)return;
-  modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><p class="eyebrow">SUPREME MD V2 / CONTROL CENTRE</p><h3>ADMIN COMMAND SUITE</h3><p id="adminStatus">Loading secure administration data…</p><div id="adminMetrics" class="admin-metrics"></div><div id="adminMembers" class="admin-members"></div>';
-  modal.classList.add('show');modal.setAttribute('aria-hidden','false');modalBox.querySelector('.modal-close').addEventListener('click',closeModal);
-  try{
-    const [overviewResponse,membersResponse]=await Promise.all([
-      fetch(API_BASE+'/api/admin/overview',{credentials:'include'}),
-      fetch(API_BASE+'/api/admin/members',{credentials:'include'})
-    ]);
-    const overview=await overviewResponse.json();const members=await membersResponse.json();
-    if(!overviewResponse.ok||!membersResponse.ok)throw new Error(overview.error||members.error||'Admin access is required.');
-    modalBox.querySelector('#adminStatus').textContent='Authorized administrator · member management enabled.';
-    modalBox.querySelector('#adminMetrics').innerHTML='<div><small>TOTAL MEMBERS</small><b>'+overview.overview.members+'</b></div><div><small>NEW THIS WEEK</small><b>'+overview.overview.new_members+'</b></div>';
-    const list=modalBox.querySelector('#adminMembers');
-    list.innerHTML='<h4>MEMBER DIRECTORY</h4>'+members.members.map(member=>'<div class="admin-member"><div><b>'+escapeText(member.username)+'</b><small>'+escapeText(member.role.toUpperCase())+' · Joined '+escapeText(new Date(member.createdAt).toLocaleDateString())+'</small></div><div class="admin-member-actions">'+(member.role==='member'?'<button type="button" data-role="admin" data-id="'+member.id+'">MAKE ADMIN</button>':'<button type="button" data-role="member" data-id="'+member.id+'">MAKE MEMBER</button>')+(member.role==='member'?'<button type="button" data-delete="'+member.id+'">REMOVE</button>':'')+'</div></div>').join('')||'<p>No members yet.</p>';
-    list.querySelectorAll('[data-role]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;const response=await fetch(API_BASE+'/api/admin/members/'+button.dataset.id+'/role',{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json','X-Requested-With':'SUPREME-MD-V2'},body:JSON.stringify({role:button.dataset.role})});const data=await response.json();if(!response.ok){modalBox.querySelector('#adminStatus').textContent=data.error||'Role update failed.';button.disabled=false;return}showAdminSuite()}));
-    list.querySelectorAll('[data-delete]').forEach(button=>button.addEventListener('click',async()=>{if(!confirm('Remove this member account? This cannot be undone.'))return;button.disabled=true;const response=await fetch(API_BASE+'/api/admin/members/'+button.dataset.delete,{method:'DELETE',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}});const data=await response.json();if(!response.ok){modalBox.querySelector('#adminStatus').textContent=data.error||'Member removal failed.';button.disabled=false;return}showAdminSuite()}));
-  }catch(error){modalBox.querySelector('#adminStatus').textContent=error.message;modalBox.querySelector('#adminMembers').innerHTML='<p>Sign in with an authorized admin account. Only administrators can view or manage members.</p>'}
+  const validTabs=['roles','analytics','settings'];
+  let activeTab=validTabs.includes(initialTab)?initialTab:'roles';
+  modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><p class="eyebrow">SUPREME MD V2 / CONTROL CENTRE</p><h3>ADMIN COMMAND SUITE</h3><div class="admin-tabs" role="tablist"><button type="button" data-admin-tab="roles">MEMBER ROLES</button><button type="button" data-admin-tab="analytics">ANALYTICS</button><button type="button" data-admin-tab="settings">SECURE SETTINGS</button></div><p id="adminStatus" aria-live="polite">Loading secure administration data…</p><div id="adminContent" class="admin-content"></div>';
+  modal.classList.add('show');modal.setAttribute('aria-hidden','false');
+  modalBox.querySelector('.modal-close').addEventListener('click',closeModal);
+  const status=modalBox.querySelector('#adminStatus');
+  const content=modalBox.querySelector('#adminContent');
+  async function api(path,options={}){
+    const response=await fetch(API_BASE+path,{credentials:'include',...options,headers:{...(options.headers||{}),...(options.method&&options.method!=='GET'?{'X-Requested-With':'SUPREME-MD-V2'}:{})}});
+    const data=await response.json().catch(()=>({error:'Invalid server response.'}));
+    if(!response.ok)throw new Error(data.error||'Administration request failed.');
+    return data;
+  }
+  async function loadTab(tab){
+    activeTab=tab;
+    modalBox.querySelectorAll('[data-admin-tab]').forEach(button=>{button.classList.toggle('active',button.dataset.adminTab===tab);button.setAttribute('aria-selected',String(button.dataset.adminTab===tab))});
+    status.textContent='Loading '+tab.replaceAll('_',' ')+'…';content.innerHTML='';
+    try{
+      if(tab==='roles'){
+        const [overview,members]=await Promise.all([api('/api/admin/overview'),api('/api/admin/members')]);
+        status.textContent='Authorized administrator · member access controls are active.';
+        content.innerHTML='<div class="admin-metrics"><div><small>TOTAL MEMBERS</small><b>'+Number(overview.overview.members)+'</b></div><div><small>NEW THIS WEEK</small><b>'+Number(overview.overview.new_members)+'</b></div></div><div class="admin-members"><h4>MEMBER DIRECTORY</h4>'+members.members.map(member=>'<div class="admin-member"><div><b>'+escapeText(member.username)+'</b><small>'+escapeText(member.role.toUpperCase())+' · Joined '+escapeText(new Date(member.createdAt).toLocaleDateString())+'</small></div><div class="admin-member-actions">'+(member.role==='member'?'<button type="button" data-role="admin" data-id="'+Number(member.id)+'">MAKE ADMIN</button><button type="button" data-delete="'+Number(member.id)+'">REMOVE</button>':'<button type="button" data-role="member" data-id="'+Number(member.id)+'">MAKE MEMBER</button>')+'</div></div>').join('')||'<p>No members yet.</p>'+'</div>';
+        content.querySelectorAll('[data-role]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await api('/api/admin/members/'+Number(button.dataset.id)+'/role',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:button.dataset.role})});await loadTab('roles')}catch(error){status.textContent=error.message;button.disabled=false}}));
+        content.querySelectorAll('[data-delete]').forEach(button=>button.addEventListener('click',async()=>{if(!confirm('Remove this member account? This cannot be undone.'))return;button.disabled=true;try{await api('/api/admin/members/'+Number(button.dataset.delete),{method:'DELETE'});await loadTab('roles')}catch(error){status.textContent=error.message;button.disabled=false}}));
+      }else if(tab==='analytics'){
+        const data=await api('/api/admin/analytics');const a=data.analytics;
+        status.textContent='Live database metrics · generated '+new Date(a.generatedAt).toLocaleString()+'.';
+        content.innerHTML='<div class="admin-metrics"><div><small>ALL ACCOUNTS</small><b>'+Number(a.users.total)+'</b></div><div><small>ACTIVE · 30 DAYS</small><b>'+Number(a.users.active_30d)+'</b></div><div><small>ADMINS</small><b>'+Number(a.users.admins)+'</b></div><div><small>NEW · 7 DAYS</small><b>'+Number(a.signups.last_7_days)+'</b></div><div><small>WHATSAPP SESSIONS</small><b>'+Number(a.sessions.total)+'</b></div><div><small>CONNECTED SESSIONS</small><b>'+Number(a.sessions.connected)+'</b></div></div><p class="admin-note">These are real account and session records. Message-volume analytics are not available because the WhatsApp engine is not active.</p>';
+      }else{
+        const data=await api('/api/admin/settings');const st=data.settings||{};const sec=data.security||{};
+        status.textContent='Platform security configuration · private admin view.';
+        const flags=[['Database connection',sec.databaseConfigured],['JWT authentication secret',sec.jwtSecretConfigured],['WhatsApp encryption key',sec.whatsappEncryptionKeyConfigured],['WhatsApp engine',sec.whatsappEngineEnabled]];
+        content.innerHTML='<div class="settings-list">'+flags.map(([label,ready])=>'<div class="setting-row"><span>'+label+'</span><b class="'+(ready?'ready':'pending')+'">'+(ready?'READY':'NOT ENABLED')+'</b></div>').join('')+'</div><div class="setting-control"><div><b>MAINTENANCE MODE</b><small>When enabled, show the platform as under maintenance. This setting does not disconnect member accounts.</small></div><label class="switch-label"><input id="maintenanceToggle" type="checkbox" '+(st.maintenance_mode===true?'checked':'')+'><span>Enabled</span></label></div><p class="admin-note">Secrets are never displayed or edited in this browser. Configure private keys only in the hosting provider’s environment settings.</p>';
+        content.querySelector('#maintenanceToggle').addEventListener('change',async event=>{const toggle=event.currentTarget;toggle.disabled=true;try{const result=await api('/api/admin/settings/maintenance',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:toggle.checked})});status.textContent='Maintenance mode '+(result.maintenanceMode?'enabled':'disabled')+'.'}catch(error){toggle.checked=!toggle.checked;status.textContent=error.message}finally{toggle.disabled=false}});
+      }
+    }catch(error){status.textContent=error.message;content.innerHTML='<p class="admin-note">Sign in with an authorized administrator account. This section is restricted to admins.</p>'}
+  }
+  modalBox.querySelectorAll('[data-admin-tab]').forEach(button=>button.addEventListener('click',()=>loadTab(button.dataset.adminTab)));
+  await loadTab(activeTab);
 }
 document.getElementById('adminPreview')?.addEventListener('click',showAdminSuite);
 modal?.querySelector('.modal-close')?.addEventListener('click',closeModal);modal?.querySelector('.modal-ok')?.addEventListener('click',closeModal);modal?.addEventListener('click',e=>{if(e.target===modal)closeModal();if(e.target.closest('.modal-close'))closeModal();if(e.target.closest('.modal-ok'))closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
