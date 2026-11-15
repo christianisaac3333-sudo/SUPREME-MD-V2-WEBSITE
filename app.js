@@ -30,7 +30,8 @@ async function refreshSession(){
   const accountButton=document.getElementById('accountBtn');
   try{const response=await fetch(API_BASE+'/api/auth/me',{credentials:'include'});if(!response.ok){if(accountButton)accountButton.textContent='MEMBER ACCESS ↗';const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=true;return null}
     const data=await response.json();if(accountButton)accountButton.textContent='SIGNED IN: '+data.user.username.toUpperCase();
-    const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=false;\n    const greeting=document.querySelector('.dash-greeting');if(greeting)greeting.textContent='WELCOME, '+data.user.username.toUpperCase();
+    const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=false;
+    const greeting=document.querySelector('.dash-greeting');if(greeting)greeting.textContent='WELCOME, '+data.user.username.toUpperCase();
     const demo=document.querySelector('.demo-chip');if(demo)demo.textContent=data.user.role.toUpperCase();
     const caption=document.querySelector('.preview-caption');if(caption)caption.textContent='SIGNED IN AS '+data.user.role.toUpperCase()+' · LIVE ACCOUNT SESSION';
     return data.user;
