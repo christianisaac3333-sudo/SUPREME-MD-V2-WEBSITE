@@ -4,6 +4,7 @@
 // Auth state is encrypted before it reaches PostgreSQL. QR values remain in memory only.
 const { saveMemberSession, loadMemberSession, removeMemberSession } = require('./session-store');
 const QRCode = require('qrcode');
+const { parseCommand, commandReply } = require('./command-router');
 
 const sessions = new Map();
 const START_TIMEOUT_MS = 90_000;
@@ -39,7 +40,7 @@ async function startMemberSession(pool, userId) {
   const restored = saved ? deserializeAuth(saved, BufferJSON) : null;
   const creds = restored?.creds || initAuthCreds();
   const keyData = restored?.keys && typeof restored.keys === 'object' ? restored.keys : {};
-  const entry = { status: 'connecting', qr: null, phoneMasked: null, startedAt: Date.now(), sock: null, persist: null };
+  const entry = { status: 'connecting', qr: null, phoneMasked: null, startedAt: Date.now(), sock: null, persist: null, lastCommandAt: new Map() };
   sessions.set(id, entry);
 
   let persistChain = Promise.resolve();
@@ -80,6 +81,35 @@ async function startMemberSession(pool, userId) {
       shouldSyncHistoryMessage: () => false
     });
     entry.sock = sock;
+    sock.ev.on('messages.upsert', async event => {
+      if (!['notify', 'append'].includes(event?.type)) return;
+      for (const message of event.messages || []) {
+        try {
+          const chat = message?.key?.remoteJid;
+          if (!chat || chat === 'status@broadcast') continue;
+          const content = message.message || {};
+          const body = content.conversation
+            || content.extendedTextMessage?.text
+            || content.imageMessage?.caption
+            || content.videoMessage?.caption
+            || content.documentMessage?.caption
+            || '';
+          const command = parseCommand(body);
+          if (!command) continue;
+          const now = Date.now();
+          const sender = message.key?.participant || chat;
+          const cooldownKey = chat + ':' + sender;
+          const previous = entry.lastCommandAt.get(cooldownKey) || 0;
+          if (now - previous < 1200) continue;
+          entry.lastCommandAt.set(cooldownKey, now);
+          if (entry.lastCommandAt.size > 500) entry.lastCommandAt.clear();
+          const reply = commandReply(command, { now, receivedAt: now, uptime: process.uptime() });
+          if (reply) await sock.sendMessage(chat, { text: reply }, { quoted: message });
+        } catch (error) {
+          console.error('WhatsApp command handler failed:', error.message);
+        }
+      }
+    });
     sock.ev.on('creds.update', async update => {
       Object.assign(creds, update);
       await persist();
