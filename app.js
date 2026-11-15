@@ -320,7 +320,7 @@ async function openMemberTool(kind){
     modalBox.querySelector('#notificationRefresh')?.addEventListener('click',refresh);refresh();return;
   }
 }
-document.querySelectorAll('[data-member-tool]').forEach(button=>button.addEventListener('click',()=>{if(button.dataset.memberTool!=='ai')openMemberTool(button.dataset.memberTool)}));
+document.querySelectorAll('[data-member-tool]:not([data-member-tool="ai"])').forEach(button=>button.addEventListener('click',()=>openMemberTool(button.dataset.memberTool)));
 /* Branded first-visit loading screen */
 (function(){
   if(document.getElementById('supremeLoader'))return;
@@ -489,3 +489,19 @@ document.querySelectorAll('[data-member-tool="ai"]').forEach(button=>{
     }finally{delete button.dataset.opening}
   });
 })();
+
+
+/* Dedicated SUPREME AI launcher. */
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-member-tool="ai"]');
+  if(!button)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if(button.dataset.aiOpening==='true')return;
+  button.dataset.aiOpening='true';
+  button.disabled=true;
+  Promise.resolve().then(()=>openMemberTool('ai')).catch(error=>{
+    openToolModal('SUPREME AI UNAVAILABLE','<p class="admin-note">The AI workspace could not open. '+escapeText(error?.message||'Please try again.')+'</p><button class="btn gold" type="button" id="supremeAiRetry">TRY AGAIN</button>');
+    modalBox?.querySelector('#supremeAiRetry')?.addEventListener('click',()=>openMemberTool('ai'));
+  }).finally(()=>{button.dataset.aiOpening='false';button.disabled=false;});
+},true);
