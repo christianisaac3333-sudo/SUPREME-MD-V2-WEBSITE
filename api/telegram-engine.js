@@ -9,6 +9,22 @@ function hashCode(code) {
   return crypto.createHash('sha256').update(String(code)).digest('hex');
 }
 
+function telegramMenu() {
+  return [
+    '♤ SUPREME MD V2 · TELEGRAM',
+    '',
+    'GENERAL COMMANDS',
+    '/menu  — Show this menu',
+    '/alive  — Check bot status',
+    '/ping  — Check response speed',
+    '/info  — Platform information',
+    '/uptime  — Server process uptime',
+    '/time  — Current Nigeria time',
+    '',
+    'This is one shared bot. Your Telegram identity is linked to your own website account.'
+  ].join('\\n');
+}
+
 function startTelegramBot(pool) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
@@ -92,13 +108,18 @@ function startTelegramBot(pool) {
         return;
       }
 
-      const names = { '/menu': 'menu', '/help': 'help', '/alive': 'alive', '/ping': 'ping', '/info': 'info', '/uptime': 'uptime', '/time': 'time' };
+      if (command === '/menu' || command === '/help') {
+        await send(telegramMenu());
+        return;
+      }
+      const names = { '/alive': 'alive', '/ping': 'ping', '/info': 'info', '/uptime': 'uptime', '/time': 'time' };
       const name = names[command];
       if (!name) {
         await send('Unknown command. Send /menu to see the available commands.');
         return;
       }
-      const reply = commandReply({ name }, { now: Date.now(), receivedAt: Date.now(), uptime: process.uptime() });
+      const now = Date.now();
+      const reply = commandReply({ name }, { now, receivedAt: now, uptime: process.uptime() });
       await send(reply || 'Command unavailable.');
     } catch (error) {
       console.error('Telegram message handler failed:', error.message);
