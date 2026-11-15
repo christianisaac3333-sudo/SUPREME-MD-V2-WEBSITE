@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
+<defs>
+ <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#080611"/><stop offset=".55" stop-color="#170b2b"/><stop offset="1" stop-color="#05040a"/></linearGradient>
+ <linearGradient id="neon" x2="1" y2="1"><stop stop-color="#e8d5ff"/><stop offset=".48" stop-color="#a855f7"/><stop offset="1" stop-color="#5b21b6"/></linearGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="900" height="1400" fill="url(#bg)"/>
+<g fill="none" stroke="#8b35e8" opacity=".42"><path d="M20 170L450 20 880 170V1230L450 1380 20 1230Z" stroke-width="3"/><path d="M42 188L450 48 858 188V1212L450 1352 42 1212Z"/></g>
+<g fill="none" stroke="#9d4edd" opacity=".18" stroke-width="2"><circle cx="450" cy="210" r="155"/><circle cx="450" cy="210" r="180"/><path d="M0 400L900 400M0 890L900 890M0 1210L900 1210"/></g>
+<text x="450" y="90" text-anchor="middle" fill="#e9d5ff" font-family="Georgia,serif" font-size="25" letter-spacing="9">♤ THE SUPREME NETWORK ♤</text>
+<text x="450" y="190" text-anchor="middle" fill="url(#neon)" stroke="#f5eaff" stroke-width="1" paint-order="stroke" font-family="Georgia,serif" font-weight="bold" font-size="88" filter="url(#glow)">SUPREME MD</text>
+<text x="450" y="244" text-anchor="middle" fill="#e879f9" font-family="Arial,sans-serif" font-size="25" font-weight="bold" letter-spacing="5">CHRIS REMAINS SUPREME</text>
+<path d="M120 280H780" stroke="url(#neon)" stroke-width="3"/>
+<g transform="translate(450 355)" filter="url(#glow)">
+ <path d="M-95 -30L-75 35H75L95 -30 45 0 0 -60 -45 0Z" fill="none" stroke="#d8b4fe" stroke-width="8"/>
+ <path d="M-120 48H120" stroke="#a855f7" stroke-width="8"/>
+ <circle cx="-95" cy="-30" r="8" fill="#fff"/><circle cy="-60" r="8" fill="#fff"/><circle cx="95" cy="-30" r="8" fill="#fff"/>
+</g>
+<rect x="55" y="435" width="790" height="210" rx="22" fill="#0b0814" stroke="#a855f7" stroke-width="3"/>
+<text x="450" y="485" text-anchor="middle" fill="#f3e8ff" font-family="Arial,sans-serif" font-size="34" font-weight="bold" letter-spacing="5">✦ CONTROL PANEL ✦</text>
+<g fill="#e9d5ff" font-family="Arial,sans-serif" font-size="28">
+<text x="105" y="540">● BOT STATUS</text><text x="470" y="540" fill="#86efac">ONLINE</text>
+<text x="105" y="585">♛ VERSION</text><text x="470" y="585">V2.0</text>
+<text x="105" y="630">♙ POWERED BY</text><text x="470" y="630" fill="#e879f9">SUPREME DEV</text>
+</g>
+<text x="450" y="710" text-anchor="middle" fill="#e9d5ff" font-family="Arial,sans-serif" font-size="42" font-weight="bold" letter-spacing="8" filter="url(#glow)">COMMANDS</text>
+<g font-family="Arial,sans-serif" font-size="24" fill="#f5eaff">
+<rect x="55" y="750" width="385" height="265" rx="18" fill="#100a1b" stroke="#7e22ce" stroke-width="2"/>
+<text x="82" y="795" fill="#d8b4fe" font-size="27" font-weight="bold">GENERAL</text>
+<text x="82" y="840">/menu   /help   /alive</text><text x="82" y="880">/ping   /info   /uptime</text><text x="82" y="920">/time   /date   /version</text><text x="82" y="960">/server  /health  /website</text>
+<text x="82" y="1000">/support  /rules  /features</text>
+<rect x="460" y="750" width="385" height="265" rx="18" fill="#100a1b" stroke="#7e22ce" stroke-width="2"/>
+<text x="487" y="795" fill="#d8b4fe" font-size="27" font-weight="bold">MEMBER + WHATSAPP</text>
+<text x="487" y="840">/profile  /account  /role</text><text x="487" y="880">/myid  /status  /session</text><text x="487" y="920">/connect  /pair  /disconnect</text><text x="487" y="960">/link  /privacy</text><text x="487" y="1000">/admin  /stats  /members</text>
+<rect x="55" y="1040" width="790" height="185" rx="18" fill="#100a1b" stroke="#7e22ce" stroke-width="2"/>
+<text x="450" y="1085" text-anchor="middle" fill="#d8b4fe" font-size="27" font-weight="bold">✦ SOCIAL &amp; DISCOVERY ✦</text>
+<text x="95" y="1135">/instagram  /pinterest  /youtube</text>
+<text x="95" y="1175">/tiktok  /facebook  /spotify</text>
+<text x="95" y="1215" fill="#c084fc">Search &amp; open public profiles safely</text>
+</g>
+<path d="M100 1270H800" stroke="#a855f7" stroke-width="2"/>
+<text x="450" y="1315" text-anchor="middle" fill="#e879f9" font-family="Georgia,serif" font-size="34" font-style="italic">Powered by ♤ SUPREME DEV ♤</text>
+<text x="450" y="1360" text-anchor="middle" fill="#c4b5fd" font-family="Arial,sans-serif" font-size="18" letter-spacing="6">SUPREME MD CLOUD · STAY SUPREME</text>
+</svg>
