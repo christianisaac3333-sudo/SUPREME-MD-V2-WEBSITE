@@ -156,6 +156,49 @@ async function requireAdmin(req, res, next) {
   next();
 }
 
+// A member can inspect only their own connection metadata. No auth keys or QR data
+// are ever returned by these endpoints.
+app.get('/api/whatsapp/session', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT status, phone_masked, connected_at, updated_at FROM whatsapp_sessions WHERE user_id = $1',
+      [req.user.id]
+    );
+    const session = result.rows[0];
+    res.json({
+      session: session ? {
+        status: session.status,
+        phoneMasked: session.phone_masked,
+        connectedAt: session.connected_at,
+        updatedAt: session.updated_at
+      } : { status: 'disconnected', phoneMasked: null, connectedAt: null, updatedAt: null },
+      hosting: { plan: 'free', alwaysOn: false, note: 'The free API may sleep. Connections are not guaranteed to remain online.' }
+    });
+  } catch (error) {
+    console.error('WhatsApp session status error:', error.message);
+    res.status(500).json({ error: 'Could not load your connection status.' });
+  }
+});
+
+// Connection is deliberately unavailable until a separately tested session engine
+// and private credential-encryption key are configured.
+app.post('/api/whatsapp/connect', requireAuth, writeLimiter, (_req, res) => {
+  res.status(503).json({
+    error: 'WhatsApp linking is not enabled yet. The secure connection engine is still being prepared.',
+    code: 'WHATSAPP_ENGINE_NOT_READY'
+  });
+});
+
+app.delete('/api/whatsapp/session', requireAuth, writeLimiter, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM whatsapp_sessions WHERE user_id = $1', [req.user.id]);
+    res.json({ ok: true, session: { status: 'disconnected' } });
+  } catch (error) {
+    console.error('WhatsApp session removal error:', error.message);
+    res.status(500).json({ error: 'Could not remove your saved session.' });
+  }
+});
+
 app.get('/api/member/activity', requireAuth, async (req, res) => {
   res.json({ activity: [{ type: 'account', message: 'Your member account is active.', createdAt: req.user.created_at }] });
 });
