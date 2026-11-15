@@ -4,7 +4,7 @@ const { encryptSessionState, decryptSessionState } = require('./session-crypto')
 
 async function saveMemberSession(pool, userId, state, metadata = {}) {
   if (!Number.isSafeInteger(Number(userId)) || Number(userId) < 1) throw new TypeError('A valid member ID is required.');
-  const encrypted = encryptSessionState(state);
+  const encrypted = encryptSessionState(state, Number(userId));
   const status = ['connecting','connected','reconnecting','needs_relink','disconnected'].includes(metadata.status)
     ? metadata.status : 'disconnected';
   const phoneMasked = typeof metadata.phoneMasked === 'string' ? metadata.phoneMasked.slice(0, 24) : null;
@@ -36,7 +36,7 @@ async function loadMemberSession(pool, userId) {
     iv: row.iv,
     authTag: row.auth_tag,
     keyVersion: Number(row.key_version)
-  });
+  }, Number(userId));
 }
 
 async function removeMemberSession(pool, userId) {
