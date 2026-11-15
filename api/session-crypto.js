@@ -13,13 +13,20 @@ function getEncryptionKey() {
   return Buffer.from(value, 'hex');
 }
 
-function encryptSessionState(state) {
+function getMemberContext(userId) {
+  const id = Number(userId);
+  if (!Number.isSafeInteger(id) || id < 1) throw new TypeError('A valid member ID is required for session encryption.');
+  return Buffer.from('supreme-md-v2:whatsapp:' + id + ':key-version:' + KEY_VERSION, 'utf8');
+}
+
+function encryptSessionState(state, userId) {
   if (state === undefined) throw new TypeError('Session state is required.');
   const plaintext = Buffer.from(JSON.stringify(state), 'utf8');
   if (plaintext.length > MAX_STATE_BYTES) throw new RangeError('Session state exceeds the storage limit.');
 
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', getEncryptionKey(), iv);
+  cipher.setAAD(getMemberContext(userId));
   const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
 
   return {
@@ -30,8 +37,8 @@ function encryptSessionState(state) {
   };
 }
 
-function decryptSessionState(record) {
-  if (!record || record.keyVersion !== KEY_VERSION ||
+function decryptSessionState(record, userId) {
+  if (!record || Number(record.keyVersion) !== KEY_VERSION ||
       typeof record.encryptedState !== 'string' ||
       typeof record.iv !== 'string' ||
       typeof record.authTag !== 'string') {
@@ -41,11 +48,15 @@ function decryptSessionState(record) {
   const iv = Buffer.from(record.iv, 'base64');
   const authTag = Buffer.from(record.authTag, 'base64');
   const encrypted = Buffer.from(record.encryptedState, 'base64');
-  if (iv.length !== 12 || authTag.length !== 16 || encrypted.length > MAX_STATE_BYTES) {
+  if (iv.length !== 12 || authTag.length !== 16 || encrypted.length > MAX_STATE_BYTES ||
+      iv.toString('base64') !== record.iv ||
+      authTag.toString('base64') !== record.authTag ||
+      encrypted.toString('base64') !== record.encryptedState) {
     throw new TypeError('Encrypted session record failed validation.');
   }
 
   const decipher = crypto.createDecipheriv('aes-256-gcm', getEncryptionKey(), iv);
+  decipher.setAAD(getMemberContext(userId));
   decipher.setAuthTag(authTag);
   const plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]);
   return JSON.parse(plaintext.toString('utf8'));
