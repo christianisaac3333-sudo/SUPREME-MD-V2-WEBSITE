@@ -77,8 +77,7 @@ async function startMemberSession(pool, userId) {
       auth: { creds, keys },
       printQRInTerminal: false,
       syncFullHistory: false,
-      markOnlineOnConnect: false,
-      shouldSyncHistoryMessage: () => false
+      markOnlineOnConnect: false
     });
     entry.sock = sock;
     sock.ev.on('messages.upsert', async event => {
