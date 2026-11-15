@@ -22,7 +22,7 @@ function telegramMenu() {
     '/time  — Current Nigeria time',
     '',
     'This is one shared bot. Your Telegram identity is linked to your own website account.'
-  ].join('\\n');
+  ].join('\n');
 }
 
 function startTelegramBot(pool) {
