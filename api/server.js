@@ -225,7 +225,7 @@ app.post('/api/whatsapp/pair', requireAuth, writeLimiter, async (req, res) => {
   const phoneNumber = typeof req.body?.phoneNumber === 'string'
     ? req.body.phoneNumber.replace(/[^0-9]/g, '')
     : '';
-  if (!/^\\d{8,15}$/.test(phoneNumber)) {
+  if (!/^\d{8,15}$/.test(phoneNumber)) {
     return res.status(400).json({ error: 'Enter a valid international number with country code, digits only.' });
   }
   try {
