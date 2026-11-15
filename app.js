@@ -389,3 +389,25 @@ async function refreshSupremeLiveDashboard(){
   if(refreshButton){refreshButton.disabled=false;refreshButton.textContent='REFRESH LIVE DATA'}
 }
 refreshSupremeLiveDashboard();
+
+
+/* Secure account password controls */
+const supremeOriginalOpenMemberTool=openMemberTool;
+openMemberTool=async function(kind){
+  await supremeOriginalOpenMemberTool(kind);
+  if(kind!=='settings'||!modalBox||!modal?.classList.contains('show'))return;
+  const body=modalBox.querySelector('#memberToolBody');
+  if(!body||body.querySelector('#changePasswordForm'))return;
+  const section=document.createElement('section');
+  section.className='tool-faq';
+  section.innerHTML='<b>ACCOUNT SECURITY</b><form id="changePasswordForm" class="auth-form"><label for="currentMemberPassword">CURRENT PASSWORD</label><input id="currentMemberPassword" type="password" autocomplete="current-password" minlength="10" maxlength="72" required><label for="newMemberPassword">NEW PASSWORD</label><input id="newMemberPassword" type="password" autocomplete="new-password" minlength="10" maxlength="72" required><label for="confirmMemberPassword">CONFIRM NEW PASSWORD</label><input id="confirmMemberPassword" type="password" autocomplete="new-password" minlength="10" maxlength="72" required><button class="btn gold" type="submit">UPDATE PASSWORD</button><p id="passwordChangeStatus" class="admin-note" role="status">Use a unique password and do not share it.</p></form>';
+  body.appendChild(section);
+  section.querySelector('#changePasswordForm').addEventListener('submit',async event=>{
+    event.preventDefault();const form=event.currentTarget;const status=section.querySelector('#passwordChangeStatus');const submit=form.querySelector('button[type="submit"]');
+    const currentPassword=form.querySelector('#currentMemberPassword').value;const newPassword=form.querySelector('#newMemberPassword').value;const confirmPassword=form.querySelector('#confirmMemberPassword').value;
+    if(newPassword!==confirmPassword){status.textContent='The new passwords do not match.';return}
+    submit.disabled=true;submit.textContent='UPDATING…';
+    try{const response=await fetch(API_BASE+'/api/auth/change-password',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json','X-Requested-With':'SUPREME-MD-V2'},body:JSON.stringify({currentPassword,newPassword})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not update password.');form.reset();status.textContent='Password updated successfully.'}
+    catch(error){status.textContent=error.message}finally{submit.disabled=false;submit.textContent='UPDATE PASSWORD'}
+  });
+};
