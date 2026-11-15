@@ -32,7 +32,7 @@ app.use(cors({
     return callback(new Error('Origin not allowed'));
   },
   credentials: true,
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'X-Requested-With', 'X-Bootstrap-Secret']
 }));
 app.use(express.json({ limit: '10kb' }));
@@ -131,6 +131,54 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
 app.post('/api/auth/logout', writeLimiter, (_req, res) => { clearSession(res); res.json({ ok: true }); });
 app.get('/api/auth/me', requireAuth, (req, res) => res.json({ user: publicUser(req.user) }));
+
+async function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+  next();
+}
+
+app.get('/api/member/activity', requireAuth, async (req, res) => {
+  res.json({ activity: [{ type: 'account', message: 'Your member account is active.', createdAt: req.user.created_at }] });
+});
+
+app.get('/api/admin/members', requireAuth, requireAdmin, async (_req, res) => {
+  const result = await pool.query('SELECT id, username, role, created_at, last_login FROM users ORDER BY created_at DESC LIMIT 200');
+  res.json({ members: result.rows.map(row => ({ id: row.id, username: row.username, role: row.role, createdAt: row.created_at, lastLogin: row.last_login })) });
+});
+
+app.patch('/api/admin/members/:id/role', requireAuth, requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  const role = req.body?.role;
+  if (!Number.isSafeInteger(id) || id < 1 || !['member', 'admin'].includes(role)) return res.status(400).json({ error: 'Invalid member or role.' });
+  if (String(req.user.id) === String(id) && role !== 'admin') return res.status(400).json({ error: 'You cannot remove your own admin access here.' });
+  try {
+    if (role === 'member') {
+      const admins = await pool.query("SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin'");
+      const target = await pool.query('SELECT role FROM users WHERE id = $1', [id]);
+      if (target.rows[0]?.role === 'admin' && admins.rows[0].count <= 1) return res.status(409).json({ error: 'The last admin account cannot be demoted.' });
+    }
+    const result = await pool.query('UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, role, created_at', [role, id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Member not found.' });
+    res.json({ ok: true, member: publicUser(result.rows[0]) });
+  } catch (error) {
+    console.error('Role update error:', error.message);
+    res.status(500).json({ error: 'Could not update this member.' });
+  }
+});
+
+app.delete('/api/admin/members/:id', requireAuth, requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'Invalid member ID.' });
+  if (String(req.user.id) === String(id)) return res.status(400).json({ error: 'You cannot delete your own admin account.' });
+  try {
+    const result = await pool.query("DELETE FROM users WHERE id = $1 AND role <> 'admin' RETURNING id", [id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Member not found or admin accounts cannot be deleted here.' });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Member removal error:', error.message);
+    res.status(500).json({ error: 'Could not remove this member.' });
+  }
+});
 
 app.get('/api/admin/overview', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
