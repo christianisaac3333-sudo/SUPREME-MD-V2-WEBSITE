@@ -155,11 +155,11 @@ async function startTelegramBot(pool) {
     const whatsappStatus = runtime || session.rows[0]?.status || 'DISCONNECTED';
     const artwork = await sharp(fs.readFileSync(path.join(__dirname, 'assets', 'supreme-menu.svg'))).png().toBuffer();
     await bot.sendPhoto(chatId, artwork, {
-      caption: '♤ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐌𝐃 𝐕𝟐  ♤\\n' +
-        '✦ CONTROL PANEL · ONLINE ✦\\n' +
-        'Member: ' + member.username + ' · Role: ' + String(member.role).toUpperCase() + '\\n' +
-        'WhatsApp: ' + String(whatsappStatus).toUpperCase() + ' · Sessions: ' + counts.rows[0].connected + '/' + MAX_SESSIONS + '\\n\\n' +
-        '♤ POWERED BY SUPREME DEV ♤\\nCHRIS REMAINS SUPREME · SUPREME MD CLOUD',
+      caption: '♤ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐌𝐃 𝐕𝟐  ♤\n' +
+        '✦ CONTROL PANEL · ONLINE ✦\n' +
+        'Member: ' + member.username + ' · Role: ' + String(member.role).toUpperCase() + '\n' +
+        'WhatsApp: ' + String(whatsappStatus).toUpperCase() + ' · Sessions: ' + counts.rows[0].connected + '/' + MAX_SESSIONS + '\n\n' +
+        '♤ POWERED BY SUPREME DEV ♤\nCHRIS REMAINS SUPREME · SUPREME MD CLOUD',
       reply_markup: {
         inline_keyboard: [
           [{ text: '🔗 LINK WHATSAPP', callback_data: 'wa_connect' }, { text: '📊 MY STATUS', callback_data: 'wa_status' }],
