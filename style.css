@@ -145,3 +145,36 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opac
 /* Clean button faces: remove decorative arrow indicators */
 .quick-action>strong,.connect-option>.arrow,.btn>b,.quick-panel a>b{display:none!important}
 .quick-action{gap:12px}
+
+
+/* SUPREME member tools, support and service centre */
+.member-tools-section{background:linear-gradient(180deg,#0b0c0b,#10100d);border-top:1px solid #c9a45a24}
+.member-tools-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:38px}
+.tool-card{min-height:255px;padding:25px;display:flex;flex-direction:column;align-items:flex-start;gap:15px;border:1px solid #c9a45a30;border-radius:5px 24px 5px 24px;background:linear-gradient(145deg,#171710,#0c0e0d);transition:transform .22s,border-color .22s}
+.tool-card:hover{transform:translateY(-4px);border-color:var(--gold)}
+.tool-symbol{width:43px;height:43px;display:grid;place-items:center;border:1px solid #c9a45a66;color:var(--gold);font-size:23px;border-radius:3px 13px 3px 13px;background:#c9a45a0d}
+.tool-card small{font:8px Orbitron;color:var(--gold);letter-spacing:1.5px}
+.tool-card h3{font:600 12px Orbitron;letter-spacing:1px;margin:9px 0}
+.tool-card p{font-size:11px;line-height:1.75;color:#999287;margin:0}
+.tool-card .btn{margin-top:auto;min-height:42px;padding:12px 15px;font-size:8px}
+.service-status-inline{margin-top:20px;padding:14px 17px;border:1px solid #ffffff18;background:#10110f;color:#9c927e;font:8px Orbitron;letter-spacing:1.1px}
+.service-status-inline .status-dot{background:#c99b4c}
+.tool-detail-list{display:grid;gap:9px;margin:16px 0;text-align:left}
+.tool-detail-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px;background:#181812;border:1px solid #ffffff12;font-size:11px}
+.tool-detail-row span{color:#9b9385}.tool-detail-row b{color:var(--pale);font:600 9px Orbitron;text-align:right}
+.tool-help{padding:13px;background:#17150f;border-left:2px solid var(--gold);color:#bdb29e;font-size:11px;line-height:1.8;text-align:left;margin:10px 0}
+.tool-faq{padding:13px 0;border-bottom:1px solid #ffffff18;text-align:left}
+.tool-faq b{display:block;font:600 10px Orbitron;color:var(--pale);margin-bottom:7px}
+.tool-faq p{font-size:11px;line-height:1.75;color:#aaa196;margin:0}
+.loading-screen{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:#080909;transition:opacity .45s,visibility .45s}
+.loading-screen.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
+.loading-core{display:grid;justify-items:center;gap:18px}
+.loading-emblem{width:76px;height:76px;display:grid;place-items:center;border:1px solid var(--gold);clip-path:polygon(50% 0,91% 18%,100% 50%,82% 91%,50% 100%,9% 82%,0 50%,18% 9%);color:var(--gold);font:34px Cinzel;animation:loadingPulse 1.5s ease-in-out infinite}
+.loading-caption{font:9px Orbitron;letter-spacing:3px;color:#c8b58d}
+.loading-line{width:150px;height:2px;background:#ffffff18;overflow:hidden}
+.loading-line:after{content:"";display:block;width:40%;height:100%;background:var(--gold);animation:loadingProgress 1.3s ease-in-out infinite}
+@keyframes loadingPulse{50%{transform:scale(1.08);filter:drop-shadow(0 0 13px var(--gold))}}
+@keyframes loadingProgress{from{transform:translateX(-110%)}to{transform:translateX(260%)}}
+@media(max-width:900px){.member-tools-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.member-tools-grid{grid-template-columns:1fr}.tool-card{min-height:220px;padding:22px}}
+@media(prefers-reduced-motion:reduce){.loading-emblem,.loading-line:after{animation:none}}
