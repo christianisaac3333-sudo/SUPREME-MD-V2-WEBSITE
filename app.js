@@ -47,7 +47,17 @@ async function refreshSession(){
     return data.user;
   }catch(_){renderMemberDashboard(null);return null}
 }
-document.querySelectorAll('.connect-option').forEach(button=>button.addEventListener('click',()=>showModal(button.dataset.method.toUpperCase()+' SELECTED','WhatsApp QR and pairing are not connected yet. Your account system is being activated first. Never share verification codes or session credentials.')));
+document.querySelectorAll('.connect-option').forEach(button=>button.addEventListener('click',async()=>{
+  showModal('CHECKING YOUR CONNECTION','Checking your private member session…');
+  try{
+    const response=await fetch(API_BASE+'/api/whatsapp/session',{credentials:'include'});
+    const data=await response.json();
+    if(response.status===401){showModal('SIGN IN REQUIRED','Sign in to your SUPREME MD V2 account before viewing your own connection status. WhatsApp linking is not enabled yet.');return}
+    if(!response.ok)throw new Error(data.error||'Could not load connection status.');
+    const state=(data.session?.status||'disconnected').replaceAll('_',' ').toUpperCase();
+    showModal(button.dataset.method.toUpperCase()+' · '+state,'Your private session status is '+state+'. The QR and pairing engine is still being prepared, so no phone number or pairing code is needed now. Free hosting may sleep and cannot guarantee 24/7 connections.');
+  }catch(error){showModal('CONNECTION STATUS UNAVAILABLE',error.message||'Please try again later.')}
+}));
 document.getElementById('accountBtn')?.addEventListener('click',()=>{showAccount('login');refreshSession().then(user=>{if(!user||!modal?.classList.contains('show'))return;modalBox.innerHTML='<button class="modal-close" aria-label="Close">×</button><span class="modal-crown">⟡</span><p class="eyebrow">SUPREME MD V2 / MEMBER IDENTITY</p><h3>YOU ARE SIGNED IN</h3><p>Welcome back, '+user.username+'. Your '+user.role+' account is active.</p><button class="btn gold" id="modalSignOut" type="button">SIGN OUT</button>';modalBox.querySelector('.modal-close').addEventListener('click',closeModal);modalBox.querySelector('#modalSignOut').addEventListener('click',logout)})});document.getElementById('signOutBtn')?.addEventListener('click',logout);
 async function logout(){try{await fetch(API_BASE+'/api/auth/logout',{method:'POST',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}})}finally{closeModal();const b=document.getElementById('accountBtn');if(b)b.textContent='MEMBER ACCESS';const signOutButton=document.getElementById('signOutBtn');if(signOutButton)signOutButton.hidden=true;const g=document.querySelector('.dash-greeting');if(g)g.textContent='WELCOME TO YOUR SPACE'}}
 async function showAdminSuite(){
