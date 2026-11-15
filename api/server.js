@@ -288,7 +288,7 @@ app.post('/api/ai/chat', requireAuth, aiLimiter, async (req, res) => {
       if (!upstream.ok) throw Object.assign(new Error('Claude request failed'), { status: upstream.status });
       answer = (payload.content || []).filter(item => item.type === 'text').map(item => item.text).join('\n').trim();
     } else {
-      const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(selected.model) + ':generateContent, {
+      const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(selected.model) + ':generateContent', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: AI_SYSTEM_PROMPT }] },
