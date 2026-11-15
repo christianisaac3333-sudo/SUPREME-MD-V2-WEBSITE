@@ -240,6 +240,42 @@ app.post('/api/auth/change-password', requireAuth, writeLimiter, async (req, res
 });
 app.get('/api/auth/me', requireAuth, (req, res) => res.json({ user: publicUser(req.user) }));
 
+// Private Supreme AI assistant. The provider key stays server-side and is never sent to browsers.
+const aiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 12, standardHeaders: 'draft-7', legacyHeaders: false });
+app.post('/api/ai/chat', requireAuth, aiLimiter, async (req, res) => {
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (!message || message.length > 2000) return res.status(400).json({ error: 'Write a message of 1–2,000 characters.' });
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'Supreme AI is not activated yet. The administrator must add the private AI key in the API service environment.' });
+  const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+  try {
+    const upstream = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        instructions: 'You are Supreme AI, the helpful assistant inside SUPREME MD V2. Be clear, respectful, accurate and concise. Help with learning, programming, planning and everyday questions. Do not claim to have performed actions or accessed accounts unless the system explicitly confirms it. Protect privacy and never request passwords, API keys or authentication codes. For dangerous or high-stakes topics, give safe, general guidance and encourage appropriate trusted help.',
+        input: message,
+        max_output_tokens: 700
+      }),
+      signal: AbortSignal.timeout(25000)
+    });
+    const payload = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) {
+      console.error('Supreme AI provider error:', upstream.status, String(payload.error?.code || payload.error?.type || 'request_failed'));
+      return res.status(upstream.status === 429 ? 429 : 502).json({ error: upstream.status === 429 ? 'Supreme AI is busy. Please wait a moment and try again.' : 'Supreme AI could not complete that request right now.' });
+    }
+    const answer = (payload.output || []).flatMap(item => item.content || []).filter(item => item.type === 'output_text').map(item => item.text).join('\n').trim();
+    if (!answer) return res.status(502).json({ error: 'Supreme AI returned an empty response. Please try again.' });
+    res.set('Cache-Control', 'no-store, private');
+    res.json({ answer, model });
+  } catch (error) {
+    console.error('Supreme AI request failed:', String(error.name || 'Error'));
+    res.status(504).json({ error: 'Supreme AI timed out. Please try again.' });
+  }
+});
+
+
 async function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
   next();
