@@ -413,7 +413,7 @@ openMemberTool=async function(kind){
 };
 
 
-/* SUPREME AI MULTI-PROVIDER CHAT EXPERIENCE */
+/* SUPREME AI — private saved conversations and multi-provider chat */
 const supremePreviousOpenMemberTool=openMemberTool;
 openMemberTool=async function(kind){
   await supremePreviousOpenMemberTool(kind);
@@ -421,29 +421,35 @@ openMemberTool=async function(kind){
   const body=modalBox.querySelector('#memberToolBody');if(!body)return;
   const user=await refreshSession();
   if(!user){body.innerHTML='<p class="admin-note">Sign in to use your private Supreme AI workspace.</p><button class="btn gold" id="supremeAiLogin" type="button">MEMBER SIGN IN</button>';body.querySelector('#supremeAiLogin')?.addEventListener('click',()=>showAccount('login'));return}
-  body.innerHTML='<div class="supreme-ai-panel"><div class="supreme-ai-intro"><strong>♤ SUPREME AI / INTELLIGENCE CORE</strong><p>Choose an enabled AI provider. Your recent messages are kept in this chat while it remains open. Do not enter passwords, private codes or sensitive personal information.</p></div><label class="supreme-ai-model-label" for="supremeAiProvider">AI MODEL PROVIDER</label><select id="supremeAiProvider" class="supreme-ai-provider"><option value="">Loading providers…</option></select><div id="supremeAiMessages" class="supreme-ai-messages" aria-live="polite"><div class="supreme-ai-message"><small>SUPREME AI</small>Welcome. Choose a provider and ask your first question.</div></div><form id="supremeAiForm" class="supreme-ai-form"><textarea id="supremeAiPrompt" maxlength="2000" required placeholder="Ask Supreme AI…"></textarea><button class="btn gold" type="submit">SEND TO SUPREME AI</button><p id="supremeAiStatus" class="supreme-ai-status" role="status">Loading available providers…</p></form></div>';
-  const form=body.querySelector('#supremeAiForm'),input=body.querySelector('#supremeAiPrompt'),messages=body.querySelector('#supremeAiMessages'),status=body.querySelector('#supremeAiStatus'),send=form.querySelector('button[type="submit"]'),selector=body.querySelector('#supremeAiProvider');
-  const history=[];
+  body.innerHTML='<div class="supreme-ai-workspace"><aside class="supreme-ai-sidebar"><button type="button" class="btn gold supreme-ai-new" id="supremeAiNew">＋ NEW CHAT</button><div class="supreme-ai-history-title">YOUR CONVERSATIONS</div><div id="supremeAiConversationList" class="supreme-ai-conversation-list"><p class="supreme-ai-status">Loading saved chats…</p></div><p class="supreme-ai-sidebar-foot">PRIVATE TO YOUR ACCOUNT</p></aside><section class="supreme-ai-main"><div class="supreme-ai-intro"><strong>♤ SUPREME AI / INTELLIGENCE CORE</strong><p>Your private AI workspace. Conversations are saved to your account. Never enter passwords, private codes or sensitive personal information.</p></div><div class="supreme-ai-toolbar"><label class="supreme-ai-model-label" for="supremeAiProvider">MODEL PROVIDER</label><select id="supremeAiProvider" class="supreme-ai-provider"><option value="">Loading providers…</option></select><button type="button" class="supreme-ai-delete" id="supremeAiDelete" disabled>DELETE CHAT</button></div><div id="supremeAiMessages" class="supreme-ai-messages" aria-live="polite"><div class="supreme-ai-message"><small>SUPREME AI</small>Welcome. Choose a provider and ask your first question.</div></div><form id="supremeAiForm" class="supreme-ai-form"><textarea id="supremeAiPrompt" maxlength="2000" required placeholder="Message Supreme AI…"></textarea><div class="supreme-ai-form-bottom"><p id="supremeAiStatus" class="supreme-ai-status" role="status">Loading available providers…</p><button class="btn gold" type="submit">SEND MESSAGE</button></div></form></section></div>';
+  const form=body.querySelector('#supremeAiForm'),input=body.querySelector('#supremeAiPrompt'),messages=body.querySelector('#supremeAiMessages'),status=body.querySelector('#supremeAiStatus'),send=form.querySelector('button[type="submit"]'),selector=body.querySelector('#supremeAiProvider'),list=body.querySelector('#supremeAiConversationList'),newButton=body.querySelector('#supremeAiNew'),deleteButton=body.querySelector('#supremeAiDelete');
+  let history=[],conversationId=null,conversationTitle='New conversation';
+  const headers={'Content-Type':'application/json','X-Requested-With':'SUPREME-MD-V2'};
+  const api=async(path,options={})=>{const response=await fetch(API_BASE+path,{credentials:'include',cache:'no-store',...options});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Request failed.');return data};
+  const addBubble=(item)=>{const bubble=document.createElement('div');bubble.className='supreme-ai-message '+(item.role==='user'?'user':'');const label=document.createElement('small');label.textContent=item.role==='user'?'YOU':'SUPREME AI';bubble.appendChild(label);bubble.appendChild(document.createTextNode(item.content));messages.appendChild(bubble)};
+  const renderHistory=()=>{messages.innerHTML='';if(!history.length){const welcome=document.createElement('div');welcome.className='supreme-ai-message';welcome.innerHTML='<small>SUPREME AI</small>Welcome. Ask a question to begin a new conversation.';messages.appendChild(welcome)}else history.forEach(addBubble);messages.scrollTop=messages.scrollHeight};
+  const refreshList=async()=>{try{const data=await api('/api/ai/conversations');list.innerHTML='';if(!data.conversations.length){list.innerHTML='<p class="supreme-ai-status">No saved conversations yet.</p>';return}data.conversations.forEach(item=>{const row=document.createElement('button');row.type='button';row.className='supreme-ai-history-item'+(String(item.id)===String(conversationId)?' active':'');row.textContent=item.title||'New conversation';row.addEventListener('click',()=>loadConversation(item.id));list.appendChild(row)})}catch(error){list.textContent=error.message}};
+  const loadConversation=async(id)=>{try{const data=await api('/api/ai/conversations/'+encodeURIComponent(id));const item=data.conversation;conversationId=String(item.id);conversationTitle=item.title||'New conversation';history=Array.isArray(item.messages)?item.messages:[];selector.value=item.provider;renderHistory();deleteButton.disabled=false;status.textContent='Saved conversation opened.';await refreshList()}catch(error){status.textContent=error.message}};
+  const newChat=()=>{conversationId=null;conversationTitle='New conversation';history=[];renderHistory();deleteButton.disabled=true;status.textContent='New conversation · choose a model and start chatting.';refreshList()};
+  newButton.addEventListener('click',newChat);
+  deleteButton.addEventListener('click',async()=>{if(!conversationId||!confirm('Delete this saved conversation?'))return;deleteButton.disabled=true;try{await api('/api/ai/conversations/'+encodeURIComponent(conversationId),{method:'DELETE',headers});newChat();status.textContent='Conversation deleted.'}catch(error){status.textContent=error.message;deleteButton.disabled=false}});
   try{
-    const response=await fetch(API_BASE+'/api/ai/models',{credentials:'include',cache:'no-store'});const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'Could not load AI providers.');
-    selector.innerHTML='';
+    const data=await api('/api/ai/models');selector.innerHTML='';
     data.providers.forEach(item=>{const option=document.createElement('option');option.value=item.id;option.disabled=!item.enabled;option.textContent=item.label+' — '+(item.enabled?item.model:'NOT CONFIGURED');selector.appendChild(option)});
-    const first=data.providers.find(item=>item.enabled);
-    if(first)selector.value=first.id;
-    status.textContent=first?'Select a provider and start chatting.':'No AI providers are configured yet. The administrator must add provider API keys in Render.';
+    const first=data.providers.find(item=>item.enabled);if(first)selector.value=first.id;
+    status.textContent=first?'Your conversations are private and saved automatically.':'No AI providers are configured. The administrator must add provider API keys in Render.';
   }catch(error){selector.innerHTML='<option value="">Providers unavailable</option>';status.textContent=error.message}
+  await refreshList();
   form.addEventListener('submit',async event=>{
-    event.preventDefault();const message=input.value.trim(),provider=selector.value;if(!message)return;
-    if(!provider){status.textContent='No AI provider is available yet.';return}
-    const userBubble=document.createElement('div');userBubble.className='supreme-ai-message user';userBubble.textContent=message;messages.appendChild(userBubble);
-    input.value='';send.disabled=true;send.textContent='THINKING…';status.textContent='Connecting to '+selector.options[selector.selectedIndex].text+'…';
+    event.preventDefault();const message=input.value.trim(),provider=selector.value;if(!message)return;if(!provider){status.textContent='No AI provider is available yet.';return}
+    const nextHistory=[...history,{role:'user',content:message}];addBubble({role:'user',content:message});input.value='';send.disabled=true;send.textContent='THINKING…';status.textContent='Connecting to '+selector.options[selector.selectedIndex].text+'…';
     try{
-      const response=await fetch(API_BASE+'/api/ai/chat',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json','X-Requested-With':'SUPREME-MD-V2'},body:JSON.stringify({provider,message,history})});
-      const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Supreme AI is unavailable.');
-      history.push({role:'user',content:message},{role:'assistant',content:data.answer});
-      const bubble=document.createElement('div');bubble.className='supreme-ai-message';const label=document.createElement('small');label.textContent='SUPREME AI · '+data.providerLabel+' · '+data.model;bubble.appendChild(label);bubble.appendChild(document.createTextNode(data.answer));messages.appendChild(bubble);status.textContent='Response complete · '+data.providerLabel;messages.scrollTop=messages.scrollHeight;
+      const data=await api('/api/ai/chat',{method:'POST',headers,body:JSON.stringify({provider,message,history:history.slice(-6)})});
+      const assistant={role:'assistant',content:data.answer};history=[...nextHistory,assistant].slice(-24);addBubble(assistant);
+      if(!conversationId){conversationTitle=message.slice(0,70)||'New conversation';const created=await api('/api/ai/conversations',{method:'POST',headers,body:JSON.stringify({provider,title:conversationTitle})});conversationId=String(created.conversation.id);deleteButton.disabled=false}
+      await api('/api/ai/conversations/'+encodeURIComponent(conversationId),{method:'PATCH',headers,body:JSON.stringify({provider,title:conversationTitle,messages:history})});
+      status.textContent='Saved · '+data.providerLabel+' · '+data.model;await refreshList();messages.scrollTop=messages.scrollHeight;
     }catch(error){status.textContent=error.message||'Could not reach Supreme AI.'}
-    finally{send.disabled=false;send.textContent='SEND TO SUPREME AI';input.focus()}
+    finally{send.disabled=false;send.textContent='SEND MESSAGE';input.focus()}
   });
 };
