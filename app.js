@@ -32,7 +32,43 @@ function renderMemberDashboard(user){
   if(!panel){panel=document.createElement('section');panel.id='memberProfile';panel.className='member-profile';const top=main.querySelector('.dash-top');if(top)top.insertAdjacentElement('afterend',panel);else main.prepend(panel)}
   if(!user){panel.innerHTML='<div class="member-profile-head"><b>MEMBER PROFILE</b><span>LOCKED</span></div><p>Sign in to load your private member dashboard and account details.</p><button class="btn gold" type="button" id="dashboardSignIn">SIGN IN TO CONTINUE</button>';panel.querySelector('#dashboardSignIn')?.addEventListener('click',()=>showAccount('login'));return}
   const joined=user.createdAt?new Date(user.createdAt).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}):'—';
-  panel.innerHTML='<div class="member-profile-head"><b>YOUR MEMBER PROFILE</b><span>SECURE ACCOUNT</span></div><div class="member-profile-grid"><div><small>USERNAME</small><strong>'+escapeText(user.username)+'</strong></div><div><small>ACCOUNT ROLE</small><strong>'+escapeText(user.role.toUpperCase())+'</strong></div><div><small>MEMBER SINCE</small><strong>'+escapeText(joined)+'</strong></div><div><small>ACCOUNT STATUS</small><strong class="member-active">ACTIVE</strong></div></div>';
+  panel.innerHTML='<div class="member-profile-head"><b>YOUR MEMBER PROFILE</b><span>SECURE ACCOUNT</span></div><div class="member-profile-grid"><div><small>USERNAME</small><strong>'+escapeText(user.username)+'</strong></div><div><small>ACCOUNT ROLE</small><strong>'+escapeText(user.role.toUpperCase())+'</strong></div><div><small>MEMBER SINCE</small><strong>'+escapeText(joined)+'</strong></div><div><small>ACCOUNT STATUS</small><strong class="member-active">ACTIVE</strong></div></div><div id="telegramLinkPanel" class="telegram-link-panel"><div class="telegram-link-head"><b>TELEGRAM ACCOUNT</b><span>SHARED BOT</span></div><p id="telegramLinkStatus">Checking Telegram link…</p><div id="telegramLinkActions"></div></div>';
+  loadTelegramLink(panel);
+}
+async function loadTelegramLink(panel){
+  const status=panel.querySelector('#telegramLinkStatus');
+  const actions=panel.querySelector('#telegramLinkActions');
+  if(!status||!actions)return;
+  try{
+    const response=await fetch(API_BASE+'/api/telegram/status',{credentials:'include'});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Could not load Telegram status.');
+    if(!data.enabled){status.textContent='The shared Telegram bot is not configured yet.';return}
+    if(data.linked){
+      status.textContent='LINKED'+(data.username?' · @'+data.username:'')+'. Your Telegram account is connected to this website identity.';
+      actions.innerHTML='<button class="btn outline" id="telegramUnlink" type="button">UNLINK TELEGRAM</button>';
+      actions.querySelector('#telegramUnlink').addEventListener('click',async()=>{
+        const button=actions.querySelector('#telegramUnlink');button.disabled=true;button.textContent='PLEASE WAIT…';
+        try{const result=await fetch(API_BASE+'/api/telegram/link',{method:'DELETE',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}});const payload=await result.json().catch(()=>({}));if(!result.ok)throw new Error(payload.error||'Could not unlink Telegram.');loadTelegramLink(panel)}
+        catch(error){status.textContent=error.message;button.disabled=false;button.textContent='UNLINK TELEGRAM'}
+      });
+      return;
+    }
+    status.textContent='Not linked. Link your Telegram identity to your SUPREME MD V2 account to use the shared bot.';
+    actions.innerHTML='<button class="btn gold" id="telegramGenerate" type="button">GENERATE LINK CODE</button><div id="telegramCodeBox" hidden></div>';
+    actions.querySelector('#telegramGenerate').addEventListener('click',async()=>{
+      const button=actions.querySelector('#telegramGenerate');button.disabled=true;button.textContent='GENERATING…';
+      try{
+        const result=await fetch(API_BASE+'/api/telegram/link-code',{method:'POST',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}});
+        const payload=await result.json().catch(()=>({}));if(!result.ok)throw new Error(payload.error||'Could not generate a link code.');
+        const box=actions.querySelector('#telegramCodeBox');box.hidden=false;
+        box.innerHTML='<strong>'+escapeText(payload.code)+'</strong><p>Open @Supremecy_bot in Telegram and send <b>/link</b> followed by this code. It expires in 10 minutes. Keep it private.</p><button class="btn outline" id="telegramCopy" type="button">COPY CODE</button>';
+        box.querySelector('#telegramCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(payload.code);box.querySelector('#telegramCopy').textContent='COPIED'}catch(_){status.textContent='Select and copy the code above manually.'}});
+        status.textContent='One-time link code generated. Complete linking in a private chat with @Supremecy_bot.';
+        button.textContent='GENERATE NEW CODE';button.disabled=false;
+      }catch(error){status.textContent=error.message;button.disabled=false;button.textContent='TRY AGAIN'}
+    });
+  }catch(error){status.textContent=error.message}
 }
 function escapeText(value){return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
 async function refreshSession(){
