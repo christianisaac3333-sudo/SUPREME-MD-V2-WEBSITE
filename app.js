@@ -116,3 +116,17 @@ let savedTheme='royal';try{savedTheme=localStorage.getItem('supreme-md-v2-theme'
 themeToggle?.addEventListener('click',()=>{const opening=themeMenu.hidden;themeMenu.hidden=!opening;themeToggle.setAttribute('aria-expanded',String(opening))});
 document.querySelectorAll('.theme-choice').forEach(choice=>choice.addEventListener('click',()=>{applyTheme(choice.dataset.theme);themeMenu.hidden=true;themeToggle.setAttribute('aria-expanded','false')}));
 document.addEventListener('click',event=>{if(!event.target.closest('.theme-wrap')){if(themeMenu)themeMenu.hidden=true;themeToggle?.setAttribute('aria-expanded','false')}});
+
+
+async function refreshMaintenanceBanner(){
+  try{
+    const response=await fetch(API_BASE+'/api/platform/status');
+    if(!response.ok)return;
+    const data=await response.json();
+    let banner=document.getElementById('maintenanceBanner');
+    if(data.maintenanceMode){
+      if(!banner){banner=document.createElement('div');banner.id='maintenanceBanner';banner.className='maintenance-banner';banner.setAttribute('role','status');banner.textContent='PLATFORM NOTICE · SUPREME MD V2 is currently in maintenance mode. Some features may be limited.';document.body.prepend(banner)}
+    }else if(banner)banner.remove();
+  }catch(_){}
+}
+refreshMaintenanceBanner();
