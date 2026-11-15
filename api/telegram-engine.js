@@ -200,6 +200,7 @@ async function startTelegramBot(pool) {
         if (!/^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || '')) return send('WhatsApp connection is not configured. Please use the website dashboard or contact the administrator.');
         try {
           const result = await startMemberSession(pool, member.id);
+          await pool.query("INSERT INTO member_activity (user_id,event_type,message) VALUES ($1,'whatsapp','You started a WhatsApp connection from Telegram.')", [member.id]);
           if (result.status === 'connected') return send('Your WhatsApp session is already connected. Use /status to check it.');
           let qr = null;
           for (let attempt = 0; attempt < 20 && !qr; attempt++) {
@@ -220,6 +221,7 @@ async function startTelegramBot(pool) {
         if (!/^[a-fA-F0-9]{64}$/.test(process.env.WHATSAPP_SESSION_KEY || '')) return send('WhatsApp pairing is not configured yet.');
         try {
           const result = await startMemberSession(pool, member.id, { phoneNumber: phone });
+          await pool.query("INSERT INTO member_activity (user_id,event_type,message) VALUES ($1,'whatsapp','You requested a WhatsApp pairing code from Telegram.')", [member.id]);
           if (!result.pairingCode) return send('A WhatsApp session is already running. Use /status first.');
           return send('♤ YOUR PRIVATE WHATSAPP PAIRING CODE\n' + result.pairingCode + '\n\nOpen WhatsApp → Linked devices → Link with phone number instead. Never share this code.');
         } catch (error) {
@@ -230,6 +232,7 @@ async function startTelegramBot(pool) {
       case '/disconnect':
         try {
           await stopMemberSession(pool, member.id);
+          await pool.query("INSERT INTO member_activity (user_id,event_type,message) VALUES ($1,'whatsapp','You disconnected your WhatsApp session from Telegram.')", [member.id]);
           return send('Your WhatsApp session has been disconnected.');
         } catch (error) {
           console.error('Telegram WhatsApp disconnect failed:', error.message);
@@ -347,6 +350,7 @@ async function startTelegramBot(pool) {
             [userId, String(telegramId), message.from?.username || null]
           );
           await client.query('UPDATE telegram_link_codes SET used_at=NOW() WHERE code_hash=$1', [hashCode(code)]);
+          await client.query("INSERT INTO member_activity (user_id,event_type,message) VALUES ($1,'telegram','You linked your Telegram account.')", [userId]);
           await client.query('COMMIT');
           const member = await getLinkedMember(telegramId);
           await send('♤ TELEGRAM LINKED\nWebsite account: ' + (member?.username || 'member') + '\n\nYour account is connected. Send /menu to view your control panel.');
