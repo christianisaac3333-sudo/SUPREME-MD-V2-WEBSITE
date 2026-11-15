@@ -87,6 +87,25 @@ async function initializeDatabase() {
       last_login TIMESTAMPTZ
     );
   `);
+
+  // Encrypted, per-member WhatsApp session storage for the V2 beta.
+  // The API never stores raw auth credentials or exposes this table to clients.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+      user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      encrypted_state TEXT NOT NULL,
+      iv TEXT NOT NULL,
+      auth_tag TEXT NOT NULL,
+      key_version SMALLINT NOT NULL DEFAULT 1,
+      status VARCHAR(24) NOT NULL DEFAULT 'disconnected'
+        CHECK (status IN ('disconnected','connecting','connected','reconnecting','needs_relink')),
+      phone_masked VARCHAR(24),
+      connected_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS whatsapp_sessions_status_idx
+      ON whatsapp_sessions(status);
+  `);
 }
 
 app.get('/api/health', async (_req, res) => {
