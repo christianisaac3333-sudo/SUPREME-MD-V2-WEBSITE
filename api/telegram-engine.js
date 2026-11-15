@@ -126,21 +126,13 @@ function startTelegramBot(pool) {
       pool.query('SELECT status FROM whatsapp_sessions WHERE user_id=$1', [member.id])
     ]);
     const whatsappStatus = runtime || session.rows[0]?.status || 'DISCONNECTED';
-    const panel = telegramMenu({
-      username: member.username,
-      role: member.role,
-      status: 'ONLINE',
-      whatsappStatus: String(whatsappStatus).toUpperCase(),
-      connected: counts.rows[0].connected,
-      capacity: MAX_SESSIONS
-    });
     const artwork = await sharp(fs.readFileSync(path.join(__dirname, 'assets', 'supreme-menu.svg'))).png().toBuffer();
     await bot.sendPhoto(chatId, artwork, {
-      caption: '♤ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐌𝐃 𝐕𝟐  ♤\\n' +
-        '✦ CONTROL PANEL · ONLINE ✦\\n' +
-        'Member: ' + member.username + ' · Role: ' + String(member.role).toUpperCase() + '\\n' +
-        'WhatsApp: ' + String(whatsappStatus).toUpperCase() + ' · Sessions: ' + counts.rows[0].connected + '/' + MAX_SESSIONS + '\\n\\n' +
-        '♤ POWERED BY SUPREME DEV ♤\\nCHRIS REMAINS SUPREME · SUPREME MD CLOUD',
+      caption: '♤ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐌𝐃 𝐕𝟐  ♤\n' +
+        '✦ CONTROL PANEL · ONLINE ✦\n' +
+        'Member: ' + member.username + ' · Role: ' + String(member.role).toUpperCase() + '\n' +
+        'WhatsApp: ' + String(whatsappStatus).toUpperCase() + ' · Sessions: ' + counts.rows[0].connected + '/' + MAX_SESSIONS + '\n\n' +
+        '♤ POWERED BY SUPREME DEV ♤\nCHRIS REMAINS SUPREME · SUPREME MD CLOUD',
       reply_markup: {
         inline_keyboard: [
           [{ text: '🔗 LINK WHATSAPP', callback_data: 'wa_connect' }, { text: '📊 MY STATUS', callback_data: 'wa_status' }],
@@ -252,33 +244,33 @@ function startTelegramBot(pool) {
         }
       case '/instagram': {
         const handle = String(args[0] || '').replace(/^@/, '');
-        if (!/^[A-Za-z0-9._]{1,30}$/.test(handle)) return send('Usage: /instagram username\\nOpens a public Instagram profile.');
-        return send('✦ INSTAGRAM PROFILE\\nhttps://www.instagram.com/' + encodeURIComponent(handle) + '/');
+        if (!/^[A-Za-z0-9._]{1,30}$/.test(handle)) return send('Usage: /instagram username\nOpens a public Instagram profile.');
+        return send('✦ INSTAGRAM PROFILE\nhttps://www.instagram.com/' + encodeURIComponent(handle) + '/');
       }
       case '/pinterest': {
         const query = args.join(' ').trim();
-        if (!query || query.length > 120) return send('Usage: /pinterest search topic\\nExample: /pinterest gaming setup');
-        return send('✦ PINTEREST DISCOVERY\\nhttps://www.pinterest.com/search/pins/?q=' + encodeURIComponent(query));
+        if (!query || query.length > 120) return send('Usage: /pinterest search topic\nExample: /pinterest gaming setup');
+        return send('✦ PINTEREST DISCOVERY\nhttps://www.pinterest.com/search/pins/?q=' + encodeURIComponent(query));
       }
       case '/youtube': {
         const query = args.join(' ').trim();
-        if (!query || query.length > 120) return send('Usage: /youtube search topic\\nExample: /youtube javascript tutorial');
-        return send('✦ YOUTUBE SEARCH\\nhttps://www.youtube.com/results?search_query=' + encodeURIComponent(query));
+        if (!query || query.length > 120) return send('Usage: /youtube search topic\nExample: /youtube javascript tutorial');
+        return send('✦ YOUTUBE SEARCH\nhttps://www.youtube.com/results?search_query=' + encodeURIComponent(query));
       }
       case '/tiktok': {
         const handle = String(args[0] || '').replace(/^@/, '');
-        if (!/^[A-Za-z0-9._]{1,24}$/.test(handle)) return send('Usage: /tiktok username\\nOpens a public TikTok profile.');
-        return send('✦ TIKTOK PROFILE\\nhttps://www.tiktok.com/@' + encodeURIComponent(handle));
+        if (!/^[A-Za-z0-9._]{1,24}$/.test(handle)) return send('Usage: /tiktok username\nOpens a public TikTok profile.');
+        return send('✦ TIKTOK PROFILE\nhttps://www.tiktok.com/@' + encodeURIComponent(handle));
       }
       case '/facebook': {
         const handle = String(args[0] || '').replace(/^@/, '');
-        if (!/^[A-Za-z0-9.]{1,50}$/.test(handle)) return send('Usage: /facebook username\\nOpens a public Facebook profile.');
-        return send('✦ FACEBOOK PROFILE\\nhttps://www.facebook.com/' + encodeURIComponent(handle));
+        if (!/^[A-Za-z0-9.]{1,50}$/.test(handle)) return send('Usage: /facebook username\nOpens a public Facebook profile.');
+        return send('✦ FACEBOOK PROFILE\nhttps://www.facebook.com/' + encodeURIComponent(handle));
       }
       case '/spotify': {
         const query = args.join(' ').trim();
-        if (!query || query.length > 120) return send('Usage: /spotify artist or song\\nExample: /spotify Burna Boy');
-        return send('✦ SPOTIFY SEARCH\\nhttps://open.spotify.com/search/' + encodeURIComponent(query));
+        if (!query || query.length > 120) return send('Usage: /spotify artist or song\nExample: /spotify Burna Boy');
+        return send('✦ SPOTIFY SEARCH\nhttps://open.spotify.com/search/' + encodeURIComponent(query));
       }
       case '/admin':
         if (!admin) return send('Admin access required.');
