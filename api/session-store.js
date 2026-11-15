@@ -3,14 +3,14 @@
 const { encryptSessionState, decryptSessionState } = require('./session-crypto');
 
 function normalizeUserId(userId) {
-  const id = userId;
+  const id = Number(userId);
   if (!Number.isSafeInteger(id) || id < 1) throw new TypeError('A valid member ID is required.');
   return id;
 }
 
 async function saveMemberSession(pool, userId, state, metadata = {}) {
-  userId = normalizeUserId(userId);
-  const encrypted = encryptSessionState(state, Number(userId));
+  const id = normalizeUserId(userId);
+  const encrypted = encryptSessionState(state, id);
   const status = ['connecting','connected','reconnecting','needs_relink','disconnected'].includes(metadata.status)
     ? metadata.status : 'disconnected';
   const phoneMasked = typeof metadata.phoneMasked === 'string' ? metadata.phoneMasked.slice(0, 24) : null;
@@ -25,16 +25,16 @@ async function saveMemberSession(pool, userId, state, metadata = {}) {
        auth_tag=EXCLUDED.auth_tag, key_version=EXCLUDED.key_version,
        status=EXCLUDED.status, phone_masked=EXCLUDED.phone_masked,
        connected_at=EXCLUDED.connected_at, updated_at=NOW()`,
-    [Number(userId), encrypted.encryptedState, encrypted.iv, encrypted.authTag,
+    [id, encrypted.encryptedState, encrypted.iv, encrypted.authTag,
      encrypted.keyVersion, status, phoneMasked, connectedAt]
   );
 }
 
 async function loadMemberSession(pool, userId) {
-  userId = normalizeUserId(userId);
+  const id = normalizeUserId(userId);
   const result = await pool.query(
     'SELECT encrypted_state, iv, auth_tag, key_version FROM whatsapp_sessions WHERE user_id=$1',
-    [Number(userId)]
+    [id]
   );
   if (!result.rowCount) return null;
   const row = result.rows[0];
@@ -43,11 +43,12 @@ async function loadMemberSession(pool, userId) {
     iv: row.iv,
     authTag: row.auth_tag,
     keyVersion: Number(row.key_version)
-  }, Number(userId));
+  }, id);
 }
 
 async function removeMemberSession(pool, userId) {
-  await pool.query('DELETE FROM whatsapp_sessions WHERE user_id=$1', [Number(userId)]);
+  const id = normalizeUserId(userId);
+  await pool.query('DELETE FROM whatsapp_sessions WHERE user_id=$1', [id]);
 }
 
 module.exports = { saveMemberSession, loadMemberSession, removeMemberSession };
