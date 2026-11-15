@@ -1,6 +1,9 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const sharp = require('sharp');
 const { startMemberSession, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
 
 let bot = null;
@@ -72,6 +75,14 @@ function telegramMenu({ username, role, status, whatsappStatus, connected, capac
     '│ /session     → Session information',
     '│ /disconnect  → Disconnect your session',
     '│',
+    '│ ◈ SOCIAL & DISCOVERY',
+    '│ /instagram name → Public Instagram profile',
+    '│ /pinterest topic → Pinterest search',
+    '│ /youtube topic → YouTube search',
+    '│ /tiktok name → Public TikTok profile',
+    '│ /facebook name → Public Facebook profile',
+    '│ /spotify topic → Spotify search',
+    '│',
     '│ ◈ ADMIN ONLY',
     '│ /admin       → Admin panel guide',
     '│ /stats       → Platform statistics',
@@ -80,7 +91,8 @@ function telegramMenu({ username, role, status, whatsappStatus, connected, capac
     '',
     '“With great power comes great responsibility.”',
     '',
-    '♤ One shared bot · Separate member accounts ♤'
+    '♤ POWERED BY SUPREME DEV ♤',
+    'CHRIS REMAINS SUPREME · SUPREME MD CLOUD'
   ].join('\n');
 }
 
@@ -114,19 +126,25 @@ function startTelegramBot(pool) {
       pool.query('SELECT status FROM whatsapp_sessions WHERE user_id=$1', [member.id])
     ]);
     const whatsappStatus = runtime || session.rows[0]?.status || 'DISCONNECTED';
-    await bot.sendMessage(chatId, telegramMenu({
+    const panel = telegramMenu({
       username: member.username,
       role: member.role,
       status: 'ONLINE',
       whatsappStatus: String(whatsappStatus).toUpperCase(),
       connected: counts.rows[0].connected,
       capacity: MAX_SESSIONS
-    }), {
-      disable_web_page_preview: true,
+    });
+    const artwork = await sharp(fs.readFileSync(path.join(__dirname, 'assets', 'supreme-menu.svg'))).png().toBuffer();
+    await bot.sendPhoto(chatId, artwork, {
+      caption: '♤ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐌𝐃 𝐕𝟐  ♤\\n' +
+        '✦ CONTROL PANEL · ONLINE ✦\\n' +
+        'Member: ' + member.username + ' · Role: ' + String(member.role).toUpperCase() + '\\n' +
+        'WhatsApp: ' + String(whatsappStatus).toUpperCase() + ' · Sessions: ' + counts.rows[0].connected + '/' + MAX_SESSIONS + '\\n\\n' +
+        '♤ POWERED BY SUPREME DEV ♤\\nCHRIS REMAINS SUPREME · SUPREME MD CLOUD',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🔗 Link WhatsApp', callback_data: 'wa_connect' }, { text: '📊 My Status', callback_data: 'wa_status' }],
-          [{ text: '📖 Commands', callback_data: 'show_menu' }, { text: '🌐 Website', url: WEBSITE }]
+          [{ text: '🔗 LINK WHATSAPP', callback_data: 'wa_connect' }, { text: '📊 MY STATUS', callback_data: 'wa_status' }],
+          [{ text: '📖 COMMANDS', callback_data: 'show_menu' }, { text: '🌐 WEBSITE', url: WEBSITE }]
         ]
       }
     });
@@ -232,6 +250,36 @@ function startTelegramBot(pool) {
           console.error('Telegram WhatsApp disconnect failed:', error.message);
           return send('Could not disconnect your session right now.');
         }
+      case '/instagram': {
+        const handle = String(args[0] || '').replace(/^@/, '');
+        if (!/^[A-Za-z0-9._]{1,30}$/.test(handle)) return send('Usage: /instagram username\\nOpens a public Instagram profile.');
+        return send('✦ INSTAGRAM PROFILE\\nhttps://www.instagram.com/' + encodeURIComponent(handle) + '/');
+      }
+      case '/pinterest': {
+        const query = args.join(' ').trim();
+        if (!query || query.length > 120) return send('Usage: /pinterest search topic\\nExample: /pinterest gaming setup');
+        return send('✦ PINTEREST DISCOVERY\\nhttps://www.pinterest.com/search/pins/?q=' + encodeURIComponent(query));
+      }
+      case '/youtube': {
+        const query = args.join(' ').trim();
+        if (!query || query.length > 120) return send('Usage: /youtube search topic\\nExample: /youtube javascript tutorial');
+        return send('✦ YOUTUBE SEARCH\\nhttps://www.youtube.com/results?search_query=' + encodeURIComponent(query));
+      }
+      case '/tiktok': {
+        const handle = String(args[0] || '').replace(/^@/, '');
+        if (!/^[A-Za-z0-9._]{1,24}$/.test(handle)) return send('Usage: /tiktok username\\nOpens a public TikTok profile.');
+        return send('✦ TIKTOK PROFILE\\nhttps://www.tiktok.com/@' + encodeURIComponent(handle));
+      }
+      case '/facebook': {
+        const handle = String(args[0] || '').replace(/^@/, '');
+        if (!/^[A-Za-z0-9.]{1,50}$/.test(handle)) return send('Usage: /facebook username\\nOpens a public Facebook profile.');
+        return send('✦ FACEBOOK PROFILE\\nhttps://www.facebook.com/' + encodeURIComponent(handle));
+      }
+      case '/spotify': {
+        const query = args.join(' ').trim();
+        if (!query || query.length > 120) return send('Usage: /spotify artist or song\\nExample: /spotify Burna Boy');
+        return send('✦ SPOTIFY SEARCH\\nhttps://open.spotify.com/search/' + encodeURIComponent(query));
+      }
       case '/admin':
         if (!admin) return send('Admin access required.');
         return send('♤ ADMIN SUITE\nUse the SUPREME MD V2 website Admin Suite for member roles and secure settings.\n/admin, /stats and /members are restricted to admins.');
@@ -245,7 +293,7 @@ function startTelegramBot(pool) {
         return send('♤ PLATFORM STATISTICS\nAccounts: ' + users.rows[0].total + '\nAdmins: ' + users.rows[0].admins + '\nMembers: ' + users.rows[0].members + '\nSaved WhatsApp sessions: ' + sessions.rows[0].total + '\nConnected sessions: ' + sessions.rows[0].connected);
       }
       default:
-        return send('Unknown command. Send /menu to view all 30 commands.');
+        return send('Unknown command. Send /menu to view all 36 commands.');
     }
   }
 
@@ -340,7 +388,7 @@ function startTelegramBot(pool) {
       const supported = new Set([
         '/menu','/help','/alive','/ping','/info','/uptime','/time','/date','/version','/server','/health',
         '/website','/support','/rules','/privacy','/features','/profile','/account','/role','/myid',
-        '/status','/session','/connect','/pair','/disconnect','/admin','/stats','/members'
+        '/status','/session','/connect','/pair','/disconnect','/instagram','/pinterest','/youtube','/tiktok','/facebook','/spotify','/admin','/stats','/members'
       ]);
       if (!supported.has(command)) return send('Unknown command. Send /menu to view all 30 commands.');
       await handleCommand(message, command, parts, member);
