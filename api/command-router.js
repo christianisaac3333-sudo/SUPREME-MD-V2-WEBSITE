@@ -36,7 +36,14 @@ function commandReply(command, context = {}) {
         '.uptime  — Server process uptime',
         '.time  — Current Nigeria time',
         '',
-        'More commands are being added.'
+        'GROUP COMMANDS',
+        '.groupinfo  — Show group details',
+        '.admins  — List group admins',
+        '.tagall  — Mention up to 30 members (admins)',
+        '.welcome on/off  — Toggle welcome messages (admins)',
+        '.goodbye on/off  — Toggle goodbye messages (admins)',
+        '',
+        'Admin-only group settings are saved separately for each of your sessions.'
       ].join('\n');
     case 'alive':
       return '♤ SUPREME MD V2 is online on this server instance.';
