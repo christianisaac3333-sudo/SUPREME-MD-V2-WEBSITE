@@ -39,11 +39,11 @@ async function startMemberSession(pool, userId) {
   const restored = saved ? deserializeAuth(saved, BufferJSON) : null;
   const creds = restored?.creds || initAuthCreds();
   const keyData = restored?.keys && typeof restored.keys === 'object' ? restored.keys : {};
-  const entry = { status: 'connecting', qr: null, startedAt: Date.now(), sock: null, persist: null };
+  const entry = { status: 'connecting', qr: null, phoneMasked: null, startedAt: Date.now(), sock: null, persist: null };
   sessions.set(id, entry);
 
   let persistChain = Promise.resolve();
-  const persist = (status = entry.status, phone = null) => {
+  const persist = (status = entry.status, phone = entry.phoneMasked) => {
     const snapshot = serializeAuth(creds, keyData, BufferJSON);
     persistChain = persistChain
       .then(() => saveMemberSession(pool, id, snapshot, { status, phoneMasked: phone || undefined }))
@@ -95,7 +95,8 @@ async function startMemberSession(pool, userId) {
         entry.qr = null;
         entry.status = 'connected';
         const jid = sock.user?.id || '';
-        await persist('connected', phoneMask(jid));
+        entry.phoneMasked = phoneMask(jid);
+        await persist('connected', entry.phoneMasked);
       }
       if (update.connection === 'close') {
         entry.qr = null;
@@ -106,7 +107,7 @@ async function startMemberSession(pool, userId) {
       }
     });
     setTimeout(() => {
-      if (sessions.get(id) === entry && entry.status === 'connecting' && !entry.qr) {
+      if (sessions.get(id) === entry && entry.status === 'connecting') {
         entry.status = 'disconnected';
         entry.qr = null;
         try { sock.end(new Error('Connection request timed out.')); } catch (_) {}
