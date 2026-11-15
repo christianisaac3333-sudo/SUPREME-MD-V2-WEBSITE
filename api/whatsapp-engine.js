@@ -81,7 +81,7 @@ async function startMemberSession(pool, userId) {
     });
     entry.sock = sock;
     sock.ev.on('messages.upsert', async event => {
-      if (!['notify', 'append'].includes(event?.type)) return;
+      if (event?.type !== 'notify') return;
       for (const message of event.messages || []) {
         try {
           const chat = message?.key?.remoteJid;
@@ -102,7 +102,9 @@ async function startMemberSession(pool, userId) {
           if (now - previous < 1200) continue;
           entry.lastCommandAt.set(cooldownKey, now);
           if (entry.lastCommandAt.size > 500) entry.lastCommandAt.clear();
-          const reply = commandReply(command, { now, receivedAt: now, uptime: process.uptime() });
+          const messageTimestamp = Number(message.messageTimestamp?.toNumber?.() ?? message.messageTimestamp) * 1000;
+          const receivedAt = Number.isFinite(messageTimestamp) && messageTimestamp > 0 ? messageTimestamp : now;
+          const reply = commandReply(command, { now, receivedAt, uptime: process.uptime() });
           if (reply) await sock.sendMessage(chat, { text: reply }, { quoted: message });
         } catch (error) {
           console.error('WhatsApp command handler failed:', error.message);
