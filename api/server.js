@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const { startMemberSession, restoreMemberSessions, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
-const { startTelegramBot, createLinkCode } = require('./telegram-engine');
+const { startTelegramBot, stopTelegramBot, createLinkCode } = require('./telegram-engine');
 
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
@@ -25,6 +25,36 @@ const pool = new Pool({
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000
 });
+
+let httpServer = null;
+let shuttingDown = false;
+
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log('Received ' + signal + '. Stopping SUPREME MD V2 cleanly.');
+
+  try {
+    await stopTelegramBot({ permanent: true });
+  } catch (error) {
+    console.error('Telegram shutdown notice:', String(error.message || 'unknown error').slice(0, 160));
+  }
+
+  if (httpServer) {
+    await new Promise(resolve => httpServer.close(resolve));
+  }
+  try {
+    await pool.end();
+  } catch (error) {
+    console.error('Database pool shutdown notice:', String(error.message || 'unknown error').slice(0, 160));
+  }
+
+  console.log('SUPREME MD V2 shutdown complete.');
+  process.exit(0);
+}
+
+process.once('SIGTERM', () => { void shutdown('SIGTERM'); });
+process.once('SIGINT', () => { void shutdown('SIGINT'); });
 
 app.set('trust proxy', 1);
 app.use(helmet());
@@ -712,7 +742,7 @@ initializeDatabase().then(async () => {
     try { await startTelegramBot(pool); }
     catch (error) { console.error('Telegram engine startup failed:', String(error.message || 'unknown error').slice(0, 180)); }
   }
-  app.listen(PORT, '0.0.0.0', () => console.log('SUPREME MD V2 API listening on ' + PORT));
+  httpServer = app.listen(PORT, '0.0.0.0', () => console.log('SUPREME MD V2 API listening on ' + PORT));
 }).catch(error => {
   console.error('Database initialization failed:', error.message);
   process.exit(1);
