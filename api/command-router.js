@@ -72,13 +72,13 @@ function commandReply(command, context = {}) {
       return 'Result: '+String(Number(result.toFixed(6)));
     }
     case 'title':
-      return input ? input.toLocaleLowerCase().replace(/(?:^|\\s)\\S/g, char => char.toLocaleUpperCase()) : 'Usage: .title your text';
+      return input ? input.toLocaleLowerCase().replace(/(?:^|\s)\S/g, char => char.toLocaleUpperCase()) : 'Usage: .title your text';
     case 'initials': {
-      const words=input.split(/\\s+/).filter(Boolean);
+      const words=input.split(/\s+/).filter(Boolean);
       return words.length ? words.map(word=>Array.from(word)[0].toLocaleUpperCase()).join('') : 'Usage: .initials your name';
     }
     case 'trim':
-      return input ? input.replace(/\\s+/g, ' ').trim() : 'Usage: .trim your text';
+      return input ? input.replace(/\s+/g, ' ').trim() : 'Usage: .trim your text';
     case 'reverse':
       return input?Array.from(input).reverse().join(''):'Usage: .reverse your text';
     case 'upper':
