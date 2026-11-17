@@ -36,7 +36,7 @@ function telegramMenu({ username, role, status, whatsappStatus, connected, capac
     '◈ SESSIONS    ' + connected + '/' + capacity,
     '',
     '┏━━〔 01 · GENERAL 〕',
-    '/start  /menu  /help  /alive  /ping',
+    '/start  /link  /menu  /help  /alive  /ping',
     '/info  /uptime  /time  /date  /version',
     '/server  /health  /website  /support',
     '/rules  /privacy  /features',
