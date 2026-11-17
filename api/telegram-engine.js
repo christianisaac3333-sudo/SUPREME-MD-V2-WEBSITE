@@ -91,7 +91,7 @@ function telegramMenu({ username, role, status, whatsappStatus, connected, capac
     '/info  /uptime  /time  /date  /version',
     '/server  /health  /website  /support',
     '/rules  /privacy  /features',
-    '/calc  /choose  /coinflip  /roll  /reverse',
+    '/calc  /title  /initials  /trim  /reverse',
     '/upper  /lower  /count  /echo  /owner',
     '',
     '┣━━〔 02 · MY ACCOUNT 〕',
@@ -236,7 +236,7 @@ async function startTelegramBot(pool) {
     const now = Date.now();
     const username = member.username;
     const admin = member.role === 'admin';
-    const utilityCommands = new Set(['/calc','/choose','/coinflip','/roll','/reverse','/upper','/lower','/count','/echo','/owner']);
+    const utilityCommands = new Set(['/calc','/title','/initials','/trim','/reverse','/upper','/lower','/count','/echo','/owner']);
     if (utilityCommands.has(command)) {
       const response = commandReply({ name: command.slice(1), args }, { now, uptime: process.uptime(), receivedAt: now });
       return send(response || 'Command unavailable. Send /menu for help.');
@@ -486,7 +486,7 @@ async function startTelegramBot(pool) {
         '/menu','/commands','/help','/alive','/ping','/info','/uptime','/time','/date','/version','/server','/health',
         '/website','/support','/rules','/privacy','/features','/profile','/account','/role','/myid',
         '/status','/session','/connect','/pair','/disconnect','/instagram','/pinterest','/youtube','/tiktok','/facebook','/spotify','/admin','/stats','/members',
-        '/calc','/choose','/coinflip','/roll','/reverse','/upper','/lower','/count','/echo','/owner'
+        '/calc','/title','/initials','/trim','/reverse','/upper','/lower','/count','/echo','/owner'
       ]);
       if (!supported.has(command)) return send('Unknown command. Send /menu to view the command list.');
       await handleCommand(message, command, parts, member);

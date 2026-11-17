@@ -30,8 +30,8 @@ test('text utilities handle bounded input',()=>{
   assert.equal(commandReply({name:'reverse',args:['abc']}),'cba');
   assert.match(commandReply({name:'count',args:['one','two']}),/Words: 2/);
 });
-test('random utility commands return bounded responses',()=>{
-  assert.match(commandReply({name:'roll',args:['2d6']}),/ = \d+$/);
-  assert.match(commandReply({name:'choose',args:['red,','blue']}),/red|blue/);
-  assert.match(commandReply({name:'coinflip'}),/Heads|Tails/);
+test('formatting commands return safe text results',()=>{
+  assert.equal(commandReply({name:'title',args:['hello','WORLD']}),'Hello World');
+  assert.equal(commandReply({name:'initials',args:['Chris','Isaac']}),'CI');
+  assert.equal(commandReply({name:'trim',args:['hello','world']}),'hello world');
 });

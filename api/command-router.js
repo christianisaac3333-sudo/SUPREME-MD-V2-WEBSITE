@@ -34,7 +34,7 @@ function commandReply(command, context = {}) {
         '.menu  .alive  .ping  .info  .uptime',
         '.time  .date  .version  .owner  .support', '',
         'TEXT & TOOLS',
-        '.calc  .choose  .coinflip  .roll',
+        '.calc  .title  .initials  .trim',
         '.reverse  .upper  .lower  .count  .echo', '',
         'GROUP COMMANDS',
         '.groupinfo  .admins  .tagall',
@@ -71,22 +71,14 @@ function commandReply(command, context = {}) {
       if (!Number.isFinite(result)) return 'That calculation is outside the supported range.';
       return 'Result: '+String(Number(result.toFixed(6)));
     }
-    case 'choose': {
-      const options=input.split(',').map(item=>item.trim()).filter(Boolean).slice(0,20);
-      if(options.length<2)return 'Usage: .choose option one, option two, option three';
-      return '♤ SUPREME PICK\n'+options[Math.floor(Math.random()*options.length)];
+    case 'title':
+      return input ? input.toLocaleLowerCase().replace(/(?:^|\\s)\\S/g, char => char.toLocaleUpperCase()) : 'Usage: .title your text';
+    case 'initials': {
+      const words=input.split(/\\s+/).filter(Boolean);
+      return words.length ? words.map(word=>Array.from(word)[0].toLocaleUpperCase()).join('') : 'Usage: .initials your name';
     }
-    case 'coinflip':
-      return '♤ COIN FLIP\n'+(Math.random()<0.5?'Heads':'Tails');
-    case 'roll': {
-      const notation=input||'1d6';
-      const match=/^(\d{1,2})d(\d{1,4})$/i.exec(notation);
-      if(!match)return 'Usage: .roll 1d6 (up to 10 dice, up to 1000 sides each)';
-      const count=Number(match[1]), sides=Number(match[2]);
-      if(count<1||count>10||sides<2||sides>1000)return 'Use 1–10 dice and 2–1000 sides.';
-      const rolls=Array.from({length:count},()=>1+Math.floor(Math.random()*sides));
-      return '♤ DICE ROLL\n'+rolls.join(' + ')+' = '+rolls.reduce((sum,value)=>sum+value,0);
-    }
+    case 'trim':
+      return input ? input.replace(/\\s+/g, ' ').trim() : 'Usage: .trim your text';
     case 'reverse':
       return input?Array.from(input).reverse().join(''):'Usage: .reverse your text';
     case 'upper':
