@@ -3,9 +3,6 @@
 const crypto = require('node:crypto');
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first');
-const fs = require('node:fs');
-const path = require('node:path');
-const sharp = require('sharp');
 const { startMemberSession, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
 
 let bot = null;
@@ -27,32 +24,39 @@ function formatDuration(totalSeconds) {
 }
 
 function telegramMenu({ username, role, status, whatsappStatus, connected, capacity }) {
-  // Telegram photo captions are limited to 1,024 characters. Keep the full
-  // 36-command index compact so the image and commands appear in ONE message.
   return [
-    '♤ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐌𝐃 𝐕𝟐 ♤',
-    '✦ CONTROL PANEL · ' + status + ' ✦',
-    'Member: ' + username + ' · Role: ' + String(role).toUpperCase(),
-    'WhatsApp: ' + whatsappStatus + ' · Sessions: ' + connected + '/' + capacity,
+    '╭━━━〔 ♤ SUPREME MD V2 〕━━━╮',
+    '       THE SUPREME CONTROL DECK',
+    '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
     '',
-    '✧ GENERAL',
-    '/start /link /menu /help /alive /ping /info /uptime /time /date /version /server /health /website /support /rules /privacy /features',
+    '◈ MEMBER      ' + username,
+    '◈ ACCESS      ' + String(role).toUpperCase(),
+    '◈ SYSTEM      ' + status,
+    '◈ WHATSAPP    ' + String(whatsappStatus).toUpperCase(),
+    '◈ SESSIONS    ' + connected + '/' + capacity,
     '',
-    '✧ MY ACCOUNT',
-    '/profile /account /role /myid',
+    '┏━━〔 01 · GENERAL 〕',
+    '/start  /menu  /help  /alive  /ping',
+    '/info  /uptime  /time  /date  /version',
+    '/server  /health  /website  /support',
+    '/rules  /privacy  /features',
     '',
-    '✧ WHATSAPP',
-    '/connect /pair /status /session /disconnect',
+    '┣━━〔 02 · MY ACCOUNT 〕',
+    '/profile  /account  /role  /myid',
     '',
-    '✧ SOCIAL & DISCOVERY',
-    '/instagram /pinterest /youtube /tiktok /facebook /spotify',
+    '┣━━〔 03 · WHATSAPP 〕',
+    '/pair  /connect  /status  /session',
+    '/disconnect',
     '',
-    '✧ ADMIN ONLY',
-    '/admin /stats /members',
+    '┣━━〔 04 · DISCOVERY 〕',
+    '/instagram  /pinterest  /youtube',
+    '/tiktok  /facebook  /spotify',
     '',
-    '♤ POWERED BY SUPREME DEV ♤',
-    'CHRIS REMAINS SUPREME · SUPREME MD CLOUD'
-  ].join('\\n');
+    '┗━━〔 05 · ADMIN ONLY 〕',
+    '/admin  /stats  /members',
+    '',
+    '♤ CHRIS REMAINS SUPREME ♤'
+  ].join('\n');
 }
 
 async function startTelegramBot(pool) {
@@ -111,7 +115,6 @@ async function startTelegramBot(pool) {
       pool.query('SELECT status FROM whatsapp_sessions WHERE user_id=$1', [member.id])
     ]);
     const whatsappStatus = runtime || session.rows[0]?.status || 'DISCONNECTED';
-    const artwork = await sharp(fs.readFileSync(path.join(__dirname, 'assets', 'supreme-menu.svg'))).png().toBuffer();
     const menuText = telegramMenu({
       username: member.username,
       role: member.role,
@@ -120,16 +123,19 @@ async function startTelegramBot(pool) {
       connected: counts.rows[0].connected,
       capacity: MAX_SESSIONS
     });
-    if (menuText.length > 1024) {
-      throw new Error('Telegram menu caption exceeds the 1,024-character photo caption limit.');
-    }
-    // One photo message: artwork first, the complete command list directly below it.
-    return bot.sendPhoto(chatId, artwork, {
-      caption: menuText,
+    return bot.sendMessage(chatId, menuText, {
+      disable_web_page_preview: true,
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🔗 LINK WHATSAPP', callback_data: 'wa_connect' }, { text: '📊 MY STATUS', callback_data: 'wa_status' }],
-          [{ text: '🌐 WEBSITE', url: WEBSITE }]
+          [
+            { text: '⚡ PAIR BY CODE', callback_data: 'wa_pair_help' },
+            { text: '◈ MY STATUS', callback_data: 'wa_status' }
+          ],
+          [
+            { text: '↻ CONNECT QR', callback_data: 'wa_connect' },
+            { text: '⏻ DISCONNECT', callback_data: 'wa_disconnect' }
+          ],
+          [{ text: '⌂ OPEN WEBSITE', url: WEBSITE }]
         ]
       }
     });
@@ -297,6 +303,13 @@ async function startTelegramBot(pool) {
       const fakeMessage = { chat: query.message.chat, from: query.from };
       if (query.data === 'wa_status') return handleCommand(fakeMessage, '/status', [], member);
       if (query.data === 'wa_connect') return handleCommand(fakeMessage, '/connect', [], member);
+      if (query.data === 'wa_disconnect') return handleCommand(fakeMessage, '/disconnect', [], member);
+      if (query.data === 'wa_pair_help') {
+        return bot.sendMessage(query.message.chat.id,
+          '♤ WHATSAPP PAIRING\\n\\nSend your own number in international format:\\n/pair 2348012345678\\n\\nUse digits only, including your country code. Then enter the code in WhatsApp → Linked devices → Link with phone number instead. Keep the code private.',
+          { disable_web_page_preview: true }
+        );
+      }
     } catch (error) {
       console.error('Telegram button handler failed:', error.message);
     }
