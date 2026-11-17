@@ -542,7 +542,7 @@ app.post('/api/telegram/link-code', requireAuth, writeLimiter, async (req, res) 
       [codeHash, req.user.id]
     );
     res.set('Cache-Control', 'no-store, private');
-    res.status(201).json({ code, expiresInSeconds: 600, instruction: 'Send /link followed by this code to @Supremecy_bot in a private chat. Keep it private.' });
+    res.status(201).json({ code, expiresInSeconds: 600, instruction: 'Send /link followed by this code to @Chris_supremebot in a private chat. Keep it private.' });
   } catch (error) {
     console.error('Telegram link code creation failed:', error.message);
     res.status(500).json({ error: 'Could not generate a Telegram link code.' });
