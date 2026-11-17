@@ -31,9 +31,23 @@ async function startMemberSession(pool, userId, options = {}) {
 
   const baileys = await import('@whiskeysockets/baileys');
   const makeWASocket = baileys.default;
-  const { initAuthCreds, BufferJSON, DisconnectReason, Browsers } = baileys;
+  const { initAuthCreds, BufferJSON, DisconnectReason, Browsers, fetchLatestBaileysVersion } = baileys;
   if (typeof makeWASocket !== 'function' || !initAuthCreds || !BufferJSON) {
     throw new Error('The WhatsApp library did not load correctly.');
+  }
+
+  let waVersion;
+  if (typeof fetchLatestBaileysVersion === 'function') {
+    try {
+      const latest = await Promise.race([
+        fetchLatestBaileysVersion(),
+        new Promise(resolve => setTimeout(() => resolve(null), 8000))
+      ]);
+      if (Array.isArray(latest?.version)) waVersion = latest.version;
+      if (waVersion) console.log('WhatsApp Web protocol version refreshed.');
+    } catch (error) {
+      console.warn('WhatsApp version lookup failed; using the library default:', String(error.message || 'network error').slice(0, 140));
+    }
   }
 
   const saved = await loadMemberSession(pool, id);
@@ -78,21 +92,37 @@ async function startMemberSession(pool, userId, options = {}) {
 
   try {
     const sock = makeWASocket({
+      ...(waVersion ? { version: waVersion } : {}),
       auth: { creds, keys },
       browser: Browsers.macOS('Chrome'),
       printQRInTerminal: false,
       syncFullHistory: false,
-      markOnlineOnConnect: false
+      markOnlineOnConnect: false,
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      keepAliveIntervalMs: 20000
     });
     entry.sock = sock;
     sock.ev.on('messages.upsert', async event => {
       if (event?.type !== 'notify') return;
-      for (const message of event.messages || []) {
+      const incoming = Array.isArray(event.messages) ? event.messages : [];
+      if (incoming.length) console.log('WhatsApp inbound message batch received: ' + incoming.length);
+      for (const message of incoming) {
         try {
           const chat = message?.key?.remoteJid;
-          if (!chat || chat === 'status@broadcast' || message.key?.fromMe) continue;
+          // Explicit commands from the linked account are allowed. Bot replies
+          // do not begin with the command prefix, so they cannot create reply loops.
+          if (!chat || chat === 'status@broadcast') continue;
           const isGroup = chat.endsWith('@g.us');
-          const content = message.message || {};
+          let content = message.message || {};
+          for (let depth = 0; depth < 4; depth++) {
+            const nested = content.ephemeralMessage?.message
+              || content.viewOnceMessage?.message
+              || content.viewOnceMessageV2?.message
+              || content.documentWithCaptionMessage?.message;
+            if (!nested) break;
+            content = nested;
+          }
           const body = content.conversation
             || content.extendedTextMessage?.text
             || content.imageMessage?.caption
@@ -102,7 +132,7 @@ async function startMemberSession(pool, userId, options = {}) {
           const command = parseCommand(body);
           if (!command) continue;
           const now = Date.now();
-          const sender = message.key?.participant || chat;
+          const sender = message.key?.participant || (message.key?.fromMe ? sock.user?.id : chat);
           const cooldownKey = chat + ':' + sender;
           const previous = entry.lastCommandAt.get(cooldownKey) || 0;
           if (now - previous < 1200) continue;
@@ -187,7 +217,8 @@ async function startMemberSession(pool, userId, options = {}) {
 
           const messageTimestamp = Number(message.messageTimestamp?.toNumber?.() ?? message.messageTimestamp) * 1000;
           const receivedAt = Number.isFinite(messageTimestamp) && messageTimestamp > 0 ? messageTimestamp : now;
-          const reply = commandReply(command, { now, receivedAt, uptime: process.uptime() });
+          console.log('WhatsApp command received: .' + command.name + ' scope=' + (isGroup ? 'group' : 'private') + ' fromMe=' + Boolean(message.key?.fromMe));
+          const reply = commandReply(command, { now, receivedAt, uptime: process.uptime(), jid: chat, isGroup });
           if (reply) await replyTo(reply);
         } catch (error) {
           console.error('WhatsApp command handler failed:', error.message);

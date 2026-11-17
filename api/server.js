@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const { startMemberSession, restoreMemberSessions, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
-const { startTelegramBot, stopTelegramBot, createLinkCode } = require('./telegram-engine');
+const { startTelegramBot, stopTelegramBot, createLinkCode, getTelegramRuntimeStatus } = require('./telegram-engine');
 
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
@@ -221,8 +221,13 @@ app.get('/api/platform/status', async (_req, res) => {
 });
 
 app.get('/api/health', async (_req, res) => {
-  try { await pool.query('SELECT 1'); res.json({ ok: true, service: 'SUPREME MD V2 API', database: 'connected' }); }
-  catch (_) { res.status(503).json({ ok: false, database: 'unavailable' }); }
+  try {
+    await pool.query('SELECT 1');
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, service: 'SUPREME MD V2 API', database: 'connected', telegram: getTelegramRuntimeStatus() });
+  } catch (_) {
+    res.status(503).json({ ok: false, database: 'unavailable', telegram: getTelegramRuntimeStatus() });
+  }
 });
 
 app.post('/api/auth/register', authLimiter, async (req, res) => {
@@ -545,9 +550,13 @@ app.get('/api/telegram/status', requireAuth, async (req, res) => {
       [req.user.id]
     );
     const row = result.rows[0];
+    const botRuntime = getTelegramRuntimeStatus();
     res.set('Cache-Control', 'no-store, private');
     res.json({
       enabled: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+      botUsername: botRuntime.username || process.env.TELEGRAM_BOT_USERNAME || null,
+      botStatus: botRuntime.status,
+      botIssue: botRuntime.issue,
       linked: Boolean(row),
       username: row?.telegram_username || null,
       linkedAt: row?.linked_at || null

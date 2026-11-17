@@ -4,15 +4,24 @@ const crypto = require('node:crypto');
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first');
 const { startMemberSession, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
+const { commandReply } = require('./command-router');
 
 let bot = null;
 let pollerLock = null;
 let pollerRetryTimer = null;
 let activePool = null;
 let shuttingDown = false;
+let pollerConflict = false;
+let runtimeStatus = 'disabled';
+let runtimeIssue = null;
+let activeBotUsername = String(process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '') || null;
 const VERSION = 'V2';
 const WEBSITE = 'https://supreme-md-v2.onrender.com';
 const MAX_SESSIONS = Math.max(1, Number(process.env.MAX_ACTIVE_SESSIONS || 10));
+
+function getTelegramRuntimeStatus() {
+  return { status: runtimeStatus, username: activeBotUsername, issue: runtimeIssue };
+}
 
 function hashCode(code) {
   return crypto.createHash('sha256').update(String(code)).digest('hex');
@@ -40,7 +49,7 @@ function schedulePollerRetry(pool) {
 }
 
 async function stopTelegramBot({ retry = false, permanent = false } = {}) {
-  if (permanent) shuttingDown = true;
+  if (permanent) { shuttingDown = true; runtimeStatus = 'stopped'; }
   if (pollerRetryTimer) {
     clearTimeout(pollerRetryTimer);
     pollerRetryTimer = null;
@@ -62,7 +71,7 @@ async function stopTelegramBot({ retry = false, permanent = false } = {}) {
     try { currentLock.release(); } catch (_) {}
   }
 
-  if (retry && !shuttingDown && activePool) schedulePollerRetry(activePool);
+  if (retry && !shuttingDown && !pollerConflict && activePool) schedulePollerRetry(activePool);
 }
 
 function telegramMenu({ username, role, status, whatsappStatus, connected, capacity }) {
@@ -78,10 +87,12 @@ function telegramMenu({ username, role, status, whatsappStatus, connected, capac
     '◈ SESSIONS    ' + connected + '/' + capacity,
     '',
     '┏━━〔 01 · GENERAL 〕',
-    '/start  /link  /menu  /help  /alive  /ping',
+    '/start  /link  /menu  /commands  /help  /alive  /ping',
     '/info  /uptime  /time  /date  /version',
     '/server  /health  /website  /support',
     '/rules  /privacy  /features',
+    '/calc  /choose  /coinflip  /roll  /reverse',
+    '/upper  /lower  /count  /echo  /owner',
     '',
     '┣━━〔 02 · MY ACCOUNT 〕',
     '/profile  /account  /role  /myid',
@@ -107,11 +118,14 @@ async function startTelegramBot(pool) {
   if (shuttingDown) return null;
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
+    runtimeStatus = 'disabled';
+    runtimeIssue = 'TELEGRAM_BOT_TOKEN is not configured.';
     console.log('Telegram bot disabled: TELEGRAM_BOT_TOKEN is not configured.');
     return null;
   }
+  if (pollerConflict) { runtimeStatus = 'conflict'; return null; }
   if (bot) return bot;
-  if (pollerLock) return null;
+  if (pollerLock) { runtimeStatus = 'standby'; return null; }
 
   // Telegram getUpdates polling permits only one active poller per bot token.
   // Hold a PostgreSQL session advisory lock for the entire polling lifetime,
@@ -123,11 +137,15 @@ async function startTelegramBot(pool) {
   );
   if (!lockResult.rows[0]?.locked) {
     candidateLock.release();
+    runtimeStatus = 'standby';
+    runtimeIssue = 'Another V2 API instance currently owns the Telegram polling lock.';
     console.log('Telegram polling standby: another API instance owns the poller lock. Retrying shortly.');
     schedulePollerRetry(pool);
     return null;
   }
   pollerLock = candidateLock;
+  runtimeStatus = 'starting';
+  runtimeIssue = null;
   candidateLock.on('error', error => {
     console.error('Telegram poller lock connection error:', String(error.message || 'database connection lost').slice(0, 160));
     void stopTelegramBot({ retry: true });
@@ -149,14 +167,22 @@ async function startTelegramBot(pool) {
     const details = Array.isArray(causes)
       ? causes.map(item => String(item.code || item.message || 'network error').slice(0, 100)).join(', ')
       : '';
-    console.error('Telegram polling error:', String(error.message || 'unknown error').slice(0, 180), details ? 'causes=' + details : '');
-    if (/409 Conflict/.test(String(error.message || ''))) {
-      console.error('Telegram poller conflict detected. Stopping this poller and waiting for the database lock to become available.');
-      void stopTelegramBot({ retry: true });
+    const message = String(error.message || 'unknown error').slice(0, 180);
+    console.error('Telegram polling error:', message, details ? 'causes=' + details : '');
+    if (/409 Conflict/.test(message)) {
+      pollerConflict = true;
+      runtimeStatus = 'conflict';
+      runtimeIssue = 'Another service or local process is polling this same bot token. V2 needs a separate Telegram bot token.';
+      console.error('Telegram token conflict: V2 polling paused. Use a unique token for this V2 service.');
+      void stopTelegramBot({ retry: false });
+      return;
     }
+    runtimeStatus = 'degraded';
+    runtimeIssue = 'Telegram polling temporarily failed. Check the V2 API logs.';
   });
 
   bot.getMe().then(identity => {
+    activeBotUsername = String(identity.username || activeBotUsername || '').replace(/^@/, '') || null;
     console.log('Telegram bot authenticated as @' + String(identity.username || 'unknown'));
   }).catch(error => {
     console.error('Telegram getMe check failed:', String(error.message || 'unknown error').slice(0, 180));
@@ -210,9 +236,15 @@ async function startTelegramBot(pool) {
     const now = Date.now();
     const username = member.username;
     const admin = member.role === 'admin';
+    const utilityCommands = new Set(['/calc','/choose','/coinflip','/roll','/reverse','/upper','/lower','/count','/echo','/owner']);
+    if (utilityCommands.has(command)) {
+      const response = commandReply({ name: command.slice(1), args }, { now, uptime: process.uptime(), receivedAt: now });
+      return send(response || 'Command unavailable. Send /menu for help.');
+    }
 
     switch (command) {
       case '/menu':
+      case '/commands':
       case '/help':
         return sendMenu(chatId, member);
       case '/alive':
@@ -349,7 +381,7 @@ async function startTelegramBot(pool) {
         return send('♤ PLATFORM STATISTICS\nAccounts: ' + users.rows[0].total + '\nAdmins: ' + users.rows[0].admins + '\nMembers: ' + users.rows[0].members + '\nSaved WhatsApp sessions: ' + sessions.rows[0].total + '\nConnected sessions: ' + sessions.rows[0].connected);
       }
       default:
-        return send('Unknown command. Send /menu to view all 36 commands.');
+        return send('Unknown command. Send /menu to view the command list.');
     }
   }
 
@@ -386,6 +418,7 @@ async function startTelegramBot(pool) {
     const send = value => bot.sendMessage(chatId, value, { disable_web_page_preview: true });
     const parts = text.split(/\s+/);
     const command = (parts.shift() || '').split('@')[0].toLowerCase();
+    if (/^\/[a-z]{1,20}$/.test(command)) console.log('Telegram command received: ' + command);
 
     try {
       if (command === '/start' && !parts[0]) {
@@ -450,11 +483,12 @@ async function startTelegramBot(pool) {
       }
 
       const supported = new Set([
-        '/menu','/help','/alive','/ping','/info','/uptime','/time','/date','/version','/server','/health',
+        '/menu','/commands','/help','/alive','/ping','/info','/uptime','/time','/date','/version','/server','/health',
         '/website','/support','/rules','/privacy','/features','/profile','/account','/role','/myid',
-        '/status','/session','/connect','/pair','/disconnect','/instagram','/pinterest','/youtube','/tiktok','/facebook','/spotify','/admin','/stats','/members'
+        '/status','/session','/connect','/pair','/disconnect','/instagram','/pinterest','/youtube','/tiktok','/facebook','/spotify','/admin','/stats','/members',
+        '/calc','/choose','/coinflip','/roll','/reverse','/upper','/lower','/count','/echo','/owner'
       ]);
-      if (!supported.has(command)) return send('Unknown command. Send /menu to view all 36 commands.');
+      if (!supported.has(command)) return send('Unknown command. Send /menu to view the command list.');
       await handleCommand(message, command, parts, member);
     } catch (error) {
       console.error('Telegram message handler failed:', error.message);
@@ -472,7 +506,10 @@ async function startTelegramBot(pool) {
   }
   try {
     await bot.startPolling({ interval: 1000, params: { timeout: 25 } });
+    if (!pollerConflict) { runtimeStatus = 'online'; runtimeIssue = null; }
   } catch (error) {
+    runtimeStatus = 'error';
+    runtimeIssue = 'Telegram polling could not start. Check the API logs.';
     console.error('Telegram polling could not start:', String(error.message || 'unknown error').slice(0, 180));
     await stopTelegramBot({ retry: true });
     throw error;
@@ -486,4 +523,4 @@ function createLinkCode() {
   return { code, codeHash: hashCode(code) };
 }
 
-module.exports = { startTelegramBot, stopTelegramBot, createLinkCode, telegramMenu };
+module.exports = { startTelegramBot, stopTelegramBot, createLinkCode, telegramMenu, getTelegramRuntimeStatus };

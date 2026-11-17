@@ -43,6 +43,7 @@ async function loadTelegramLink(panel){
     const response=await fetch(API_BASE+'/api/telegram/status',{credentials:'include'});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Could not load Telegram status.');
+    const botHandle=String(data.botUsername||'Chris_supremebot').replace(/^@/,'');
     if(!data.enabled){status.textContent='The shared Telegram bot is not configured yet.';return}
     if(data.linked){
       status.textContent='LINKED'+(data.username?' · @'+data.username:'')+'. Your Telegram account is connected to this website identity.';
@@ -62,9 +63,9 @@ async function loadTelegramLink(panel){
         const result=await fetch(API_BASE+'/api/telegram/link-code',{method:'POST',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}});
         const payload=await result.json().catch(()=>({}));if(!result.ok)throw new Error(payload.error||'Could not generate a link code.');
         const box=actions.querySelector('#telegramCodeBox');box.hidden=false;
-        box.innerHTML='<strong>'+escapeText(payload.code)+'</strong><p>Open @Chris_supremebot in Telegram and send <b>/link</b> followed by this code. It expires in 10 minutes. Keep it private.</p><button class="btn outline" id="telegramCopy" type="button">COPY CODE</button>';
+        box.innerHTML='<strong>'+escapeText(payload.code)+'</strong><p>Open @'+escapeText(botHandle)+' in Telegram and send <b>/link</b> followed by this code. It expires in 10 minutes. Keep it private.</p><button class="btn outline" id="telegramCopy" type="button">COPY CODE</button>';
         box.querySelector('#telegramCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(payload.code);box.querySelector('#telegramCopy').textContent='COPIED'}catch(_){status.textContent='Select and copy the code above manually.'}});
-        status.textContent='One-time link code generated. Complete linking in a private chat with @Chris_supremebot.';
+        status.textContent='One-time link code generated. Complete linking in a private chat with @'+escapeText(botHandle)+'.';
         button.textContent='GENERATE NEW CODE';button.disabled=false;
       }catch(error){status.textContent=error.message;button.disabled=false;button.textContent='TRY AGAIN'}
     });
@@ -503,3 +504,44 @@ document.addEventListener('click',event=>{
     modalBox?.querySelector('#supremeAiRetry')?.addEventListener('click',()=>openMemberTool('ai'));
   }).finally(()=>{button.dataset.aiOpening='false';button.disabled=false;});
 },true);
+
+
+/* Searchable bot command library and live service health */
+(function bindCommandLibrary(){
+  const search=document.getElementById('commandSearch');
+  const groups=[...document.querySelectorAll('.command-group')];
+  const items=[...document.querySelectorAll('.command-item')];
+  const status=document.getElementById('commandServiceStatus');
+  const refresh=document.getElementById('commandStatusRefresh');
+  if(search){
+    search.addEventListener('input',()=>{
+      const query=search.value.trim().toLowerCase();
+      items.forEach(item=>{
+        const haystack=(item.dataset.search||'')+' '+item.textContent;
+        item.hidden=Boolean(query)&&!haystack.toLowerCase().includes(query);
+      });
+      groups.forEach(group=>{group.hidden=!group.querySelector('.command-item:not([hidden])')});
+    });
+  }
+  async function refreshStatus(){
+    if(!status)return;
+    if(refresh){refresh.disabled=true;refresh.textContent='CHECKING…'}
+    status.textContent='Checking live API status…';
+    try{
+      const response=await fetch(API_BASE+'/api/health',{cache:'no-store'});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!data.ok)throw new Error('API unavailable');
+      const telegram=data.telegram?.status||'unknown';
+      const label=telegram==='online'?'TELEGRAM ONLINE':telegram==='conflict'?'TELEGRAM TOKEN CONFLICT':'TELEGRAM '+String(telegram).toUpperCase();
+      status.textContent='API ONLINE · DATABASE CONNECTED · '+label;
+      status.dataset.state=telegram==='online'?'online':telegram==='conflict'?'warning':'pending';
+    }catch(_){
+      status.textContent='API STATUS UNAVAILABLE · TRY AGAIN IN A MOMENT';
+      status.dataset.state='warning';
+    }finally{
+      if(refresh){refresh.disabled=false;refresh.textContent='REFRESH STATUS'}
+    }
+  }
+  refresh?.addEventListener('click',refreshStatus);
+  refreshStatus();
+})();
