@@ -62,9 +62,9 @@ async function loadTelegramLink(panel){
         const result=await fetch(API_BASE+'/api/telegram/link-code',{method:'POST',credentials:'include',headers:{'X-Requested-With':'SUPREME-MD-V2'}});
         const payload=await result.json().catch(()=>({}));if(!result.ok)throw new Error(payload.error||'Could not generate a link code.');
         const box=actions.querySelector('#telegramCodeBox');box.hidden=false;
-        box.innerHTML='<strong>'+escapeText(payload.code)+'</strong><p>Open @Supremecy_bot in Telegram and send <b>/link</b> followed by this code. It expires in 10 minutes. Keep it private.</p><button class="btn outline" id="telegramCopy" type="button">COPY CODE</button>';
+        box.innerHTML='<strong>'+escapeText(payload.code)+'</strong><p>Open @Chris_supremebot in Telegram and send <b>/link</b> followed by this code. It expires in 10 minutes. Keep it private.</p><button class="btn outline" id="telegramCopy" type="button">COPY CODE</button>';
         box.querySelector('#telegramCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(payload.code);box.querySelector('#telegramCopy').textContent='COPIED'}catch(_){status.textContent='Select and copy the code above manually.'}});
-        status.textContent='One-time link code generated. Complete linking in a private chat with @Supremecy_bot.';
+        status.textContent='One-time link code generated. Complete linking in a private chat with @Chris_supremebot.';
         button.textContent='GENERATE NEW CODE';button.disabled=false;
       }catch(error){status.textContent=error.message;button.disabled=false;button.textContent='TRY AGAIN'}
     });
