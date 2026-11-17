@@ -31,7 +31,7 @@ async function startMemberSession(pool, userId, options = {}) {
 
   const baileys = await import('@whiskeysockets/baileys');
   const makeWASocket = baileys.default;
-  const { initAuthCreds, BufferJSON, DisconnectReason } = baileys;
+  const { initAuthCreds, BufferJSON, DisconnectReason, Browsers } = baileys;
   if (typeof makeWASocket !== 'function' || !initAuthCreds || !BufferJSON) {
     throw new Error('The WhatsApp library did not load correctly.');
   }
@@ -79,6 +79,7 @@ async function startMemberSession(pool, userId, options = {}) {
   try {
     const sock = makeWASocket({
       auth: { creds, keys },
+      browser: Browsers.macOS('Chrome'),
       printQRInTerminal: false,
       syncFullHistory: false,
       markOnlineOnConnect: false
@@ -225,6 +226,7 @@ async function startMemberSession(pool, userId, options = {}) {
       if (update.qr) {
         entry.qr = update.qr;
         entry.status = 'connecting';
+        if (options.phoneNumber) console.log('WhatsApp pairing handshake reached the QR-ready stage.');
         await persist('connecting');
       }
       // Wait until Baileys has emitted its QR event (the socket is ready),
@@ -245,6 +247,7 @@ async function startMemberSession(pool, userId, options = {}) {
               return;
             } catch (error) {
               lastError = error;
+              console.warn('WhatsApp pairing code attempt ' + attempt + ' failed:', String(error.message || 'unknown error').slice(0, 180));
               if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1500));
             }
           }
@@ -270,8 +273,17 @@ async function startMemberSession(pool, userId, options = {}) {
         }
       }
       if (update.connection === 'close') {
+        const receivedQr = Boolean(entry.qr);
+        const disconnectError = update.lastDisconnect?.error;
+        const code = disconnectError?.output?.statusCode || disconnectError?.statusCode;
+        const reason = String(disconnectError?.message || 'No disconnect reason supplied').slice(0, 180);
+        console.error(
+          'WhatsApp connection closed: status=' + (code || 'unknown') +
+          ' reason=' + reason +
+          ' qrReceived=' + receivedQr +
+          ' pairingCodeIssued=' + Boolean(entry.pairingCode)
+        );
         entry.qr = null;
-        const code = update.lastDisconnect?.error?.output?.statusCode;
         entry.status = code === DisconnectReason.loggedOut ? 'needs_relink' : 'disconnected';
         if (options.phoneNumber && !entry.pairingCode) rejectPairingCode(new Error('WhatsApp disconnected before the pairing code was generated. Please retry.'));
         await persist(entry.status);
