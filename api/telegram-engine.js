@@ -26,7 +26,7 @@ function formatDuration(totalSeconds) {
 function telegramMenu({ username, role, status, whatsappStatus, connected, capacity }) {
   return [
     '╭━━━〔 ♤ SUPREME MD V2 〕━━━╮',
-    '       THE SUPREME CONTROL DECK',
+    '       THE SUPREME CONTROL PANEL',
     '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
     '',
     '◈ MEMBER      ' + username,
@@ -48,14 +48,15 @@ function telegramMenu({ username, role, status, whatsappStatus, connected, capac
     '/pair  /connect  /status  /session',
     '/disconnect',
     '',
-    '┣━━〔 04 · DISCOVERY 〕',
+    '┣━━〔 04 · SOCIAL & DISCOVERY 〕',
     '/instagram  /pinterest  /youtube',
     '/tiktok  /facebook  /spotify',
     '',
     '┗━━〔 05 · ADMIN ONLY 〕',
     '/admin  /stats  /members',
     '',
-    '♤ CHRIS REMAINS SUPREME ♤'
+    '♤ POWERED BY SUPREME DEV ♤',
+    'CHRIS REMAINS SUPREME'
   ].join('\n');
 }
 
