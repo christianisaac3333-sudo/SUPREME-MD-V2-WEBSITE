@@ -6,6 +6,10 @@ dns.setDefaultResultOrder('ipv4first');
 const { startMemberSession, getMemberQr, getMemberRuntimeStatus, stopMemberSession } = require('./whatsapp-engine');
 
 let bot = null;
+let pollerLock = null;
+let pollerRetryTimer = null;
+let activePool = null;
+let shuttingDown = false;
 const VERSION = 'V2';
 const WEBSITE = 'https://supreme-md-v2.onrender.com';
 const MAX_SESSIONS = Math.max(1, Number(process.env.MAX_ACTIVE_SESSIONS || 10));
@@ -21,6 +25,44 @@ function formatDuration(totalSeconds) {
   const minutes = Math.floor((seconds % 3600) / 60);
   const remainder = seconds % 60;
   return [days ? days + 'd' : null, hours ? hours + 'h' : null, minutes ? minutes + 'm' : null, remainder + 's'].filter(Boolean).join(' ');
+}
+
+function schedulePollerRetry(pool) {
+  if (pollerRetryTimer || shuttingDown) return;
+  pollerRetryTimer = setTimeout(() => {
+    pollerRetryTimer = null;
+    startTelegramBot(pool).catch(error => {
+      console.error('Telegram poller retry failed:', String(error.message || 'unknown error').slice(0, 180));
+      schedulePollerRetry(pool);
+    });
+  }, 5000);
+  pollerRetryTimer.unref?.();
+}
+
+async function stopTelegramBot({ retry = false, permanent = false } = {}) {
+  if (permanent) shuttingDown = true;
+  if (pollerRetryTimer) {
+    clearTimeout(pollerRetryTimer);
+    pollerRetryTimer = null;
+  }
+
+  const currentBot = bot;
+  bot = null;
+  if (currentBot) {
+    try {
+      await currentBot.stopPolling();
+    } catch (error) {
+      console.warn('Telegram polling stop notice:', String(error.message || 'already stopped').slice(0, 160));
+    }
+  }
+
+  const currentLock = pollerLock;
+  pollerLock = null;
+  if (currentLock) {
+    try { currentLock.release(); } catch (_) {}
+  }
+
+  if (retry && !shuttingDown && activePool) schedulePollerRetry(activePool);
 }
 
 function telegramMenu({ username, role, status, whatsappStatus, connected, capacity }) {
@@ -61,26 +103,41 @@ function telegramMenu({ username, role, status, whatsappStatus, connected, capac
 }
 
 async function startTelegramBot(pool) {
+  activePool = pool;
+  if (shuttingDown) return null;
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     console.log('Telegram bot disabled: TELEGRAM_BOT_TOKEN is not configured.');
     return null;
   }
   if (bot) return bot;
+  if (pollerLock) return null;
 
   // Telegram getUpdates polling permits only one active poller per bot token.
   // Hold a PostgreSQL session advisory lock for the entire polling lifetime,
   // so overlapping Render deploy instances cannot create competing pollers.
-  const pollerLock = await pool.connect();
-  const lockResult = await pollerLock.query(
+  const candidateLock = await pool.connect();
+  const lockResult = await candidateLock.query(
     'SELECT pg_try_advisory_lock($1, $2) AS locked',
     [1397769293, 2]
   );
   if (!lockResult.rows[0]?.locked) {
-    pollerLock.release();
-    console.log('Telegram polling standby: another API instance owns the poller lock.');
+    candidateLock.release();
+    console.log('Telegram polling standby: another API instance owns the poller lock. Retrying shortly.');
+    schedulePollerRetry(pool);
     return null;
   }
+  pollerLock = candidateLock;
+  candidateLock.on('error', error => {
+    console.error('Telegram poller lock connection error:', String(error.message || 'database connection lost').slice(0, 160));
+    void stopTelegramBot({ retry: true });
+  });
+  candidateLock.on('end', () => {
+    if (pollerLock === candidateLock && !shuttingDown) {
+      console.error('Telegram poller lock connection ended unexpectedly.');
+      void stopTelegramBot({ retry: true });
+    }
+  });
   console.log('Telegram polling lock acquired by this API instance.');
 
   const TelegramBot = require('node-telegram-bot-api');
@@ -93,6 +150,10 @@ async function startTelegramBot(pool) {
       ? causes.map(item => String(item.code || item.message || 'network error').slice(0, 100)).join(', ')
       : '';
     console.error('Telegram polling error:', String(error.message || 'unknown error').slice(0, 180), details ? 'causes=' + details : '');
+    if (/409 Conflict/.test(String(error.message || ''))) {
+      console.error('Telegram poller conflict detected. Stopping this poller and waiting for the database lock to become available.');
+      void stopTelegramBot({ retry: true });
+    }
   });
 
   bot.getMe().then(identity => {
@@ -413,8 +474,7 @@ async function startTelegramBot(pool) {
     await bot.startPolling({ interval: 1000, params: { timeout: 25 } });
   } catch (error) {
     console.error('Telegram polling could not start:', String(error.message || 'unknown error').slice(0, 180));
-    pollerLock.release();
-    bot = null;
+    await stopTelegramBot({ retry: true });
     throw error;
   }
   console.log('SUPREME MD V2 Telegram bot polling started.');
@@ -426,4 +486,4 @@ function createLinkCode() {
   return { code, codeHash: hashCode(code) };
 }
 
-module.exports = { startTelegramBot, createLinkCode, telegramMenu };
+module.exports = { startTelegramBot, stopTelegramBot, createLinkCode, telegramMenu };
