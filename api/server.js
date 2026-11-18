@@ -211,6 +211,14 @@ async function initializeDatabase() {
   `);
 }
 
+
+// Public, read-only command directory shared with the Telegram control surface.
+app.get('/api/commands', (_req, res) => {
+  const { cloudCommandDirectory } = require('./command-router');
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json({ service: 'SUPREME MD CLOUD', prefix: '.', directory: cloudCommandDirectory() });
+});
+
 app.get('/api/platform/status', async (_req, res) => {
   try {
     const result = await pool.query("SELECT setting_value FROM platform_settings WHERE setting_key='maintenance_mode'");

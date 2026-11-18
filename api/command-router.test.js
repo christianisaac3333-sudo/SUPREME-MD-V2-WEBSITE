@@ -35,3 +35,13 @@ test('formatting commands return safe text results',()=>{
   assert.equal(commandReply({name:'initials',args:['Chris','Isaac']}),'CI');
   assert.equal(commandReply({name:'trim',args:['hello','world']}),'hello world');
 });
+
+test('cloud command directory exposes the documented WhatsApp command groups',()=>{
+  const {cloudCommandDirectory}=require('./command-router');
+  const menu=cloudCommandDirectory();
+  assert.match(menu,/SUPREME MD CLOUD/);
+  assert.match(menu,/\.ask/);
+  assert.match(menu,/\.pinterest/);
+  assert.match(menu,/\.groupinfo/);
+  assert.match(menu,/\.broadcast/);
+});
