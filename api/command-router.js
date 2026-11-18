@@ -1,5 +1,23 @@
 'use strict';
 
+
+const CLOUD_COMMANDS = [
+  ['GENERAL', '.menu · .help · .commands · .alive · .ping · .uptime · .info · .id · .jid · .owner · .rules · .time · .calc'],
+  ['AI', '.ask · .translate · .summarize · .weather'],
+  ['MEDIA', '.sticker · .toimg · .tomp3 · .vv'],
+  ['SEARCH', '.pinterest · .google · .youtube · .tiktok · .instagram · .facebook · .spotify · .github'],
+  ['GROUPS', '.groupinfo · .admins · .tagall · .hidetag · .grouplink · .revoke · .warn · .warnings · .kick · .promote · .demote · .mute · .unmute · .antilink · .antispam · .welcome · .goodbye'],
+  ['GAMES', '.riddle · .answer · .guess · .flip · .dice · .roll · .joke · .fact'],
+  ['OWNER', '.settings · .mode · .sudo · .broadcast · .restart']
+];
+
+function cloudCommandDirectory(prefix = '.') {
+  return ['♤ SUPREME MD CLOUD — COMMAND DIRECTORY', 'Commands run on your linked WhatsApp session.', '',
+    ...CLOUD_COMMANDS.flatMap(([section, commands]) => [section, commands, '']),
+    'Some commands require API configuration, group-admin rights or owner access.',
+    'Use .menu on WhatsApp for the live bot menu.'].join('\\n');
+}
+
 function formatDuration(totalSeconds) {
   const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
   const days = Math.floor(seconds / 86400);
@@ -96,4 +114,4 @@ function commandReply(command, context = {}) {
       return null;
   }
 }
-module.exports = { formatDuration, parseCommand, commandReply };
+module.exports = { formatDuration, parseCommand, commandReply, cloudCommandDirectory };
