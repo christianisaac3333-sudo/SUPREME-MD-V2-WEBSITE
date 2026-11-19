@@ -243,7 +243,7 @@ async function startTelegramBot(pool) {
     const now = Date.now();
     const username = member.username;
     const admin = member.role === 'admin';
-    const utilityCommands = new Set(['/calc','/title','/initials','/trim','/reverse','/upper','/lower','/count','/echo','/owner']);
+    const utilityCommands = new Set(['/ask','/calc','/title','/initials','/trim','/reverse','/upper','/lower','/count','/echo','/owner']);
     if (utilityCommands.has(command)) {
       const response = commandReply({ name: command.slice(1), args }, { now, uptime: process.uptime(), receivedAt: now });
       return send(response || 'Command unavailable. Send /menu for help.');
@@ -254,6 +254,25 @@ async function startTelegramBot(pool) {
       case '/commands':
       case '/help':
         return sendMenu(chatId, member);
+      case '/ask': {
+        const question = args.join(' ').trim();
+        if (!question || question.length > 2000) return send('Usage: /ask your question (up to 2000 characters)');
+        if (!process.env.OPENAI_API_KEY) return send('SUPREME AI is not configured on the server yet. An administrator must configure its provider key.');
+        try {
+          const upstream = await fetch('https://api.openai.com/v1/responses', {
+            method: 'POST', headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', instructions: 'You are SUPREME AI. Be helpful, accurate, respectful and safe. Do not claim to perform actions you have not performed.', input: question, max_output_tokens: 700 }),
+            signal: AbortSignal.timeout(25000)
+          });
+          const payload = await upstream.json().catch(() => ({}));
+          if (!upstream.ok) throw new Error('AI provider error');
+          const answer = (payload.output || []).flatMap(item => item.content || []).filter(item => item.type === 'output_text').map(item => item.text).join('\n').trim();
+          return send(answer.slice(0, 3900) || 'AI returned an empty response.');
+        } catch (error) {
+          console.error('Telegram AI request failed:', String(error.message || 'unknown').slice(0, 150));
+          return send('SUPREME AI could not respond right now. Please try again later.');
+        }
+      }
       case '/alive':
         return send('♤ SUPREME MD V2 is online. Your account is linked and ready.');
       case '/ping':
