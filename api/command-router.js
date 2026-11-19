@@ -47,18 +47,25 @@ function commandReply(command, context = {}) {
     case 'help':
     case 'commands':
       return [
-        '♤ SUPREME MD V2', '',
-        'GENERAL',
+        '╭━━━〔 ♤ SUPREME MD V2 ♤ 〕━━━╮',
+        '        THE SUPREME CONTROL PANEL',
+        '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯', '',
+        '◈ SYSTEM   ACTIVE',
+        '◈ PLATFORM WhatsApp', '',
+        '┏━━〔 01 · GENERAL 〕',
         '.menu  .alive  .ping  .info  .uptime',
         '.time  .date  .version  .owner  .support', '',
-        'TEXT & TOOLS',
+        '┣━━〔 02 · SUPREME AI 〕',
+        '.ask <question>  · AI assistant (if configured)', '',
+        '┣━━〔 03 · TEXT & TOOLS 〕',
         '.calc  .title  .initials  .trim',
         '.reverse  .upper  .lower  .count  .echo', '',
-        'GROUP COMMANDS',
+        '┣━━〔 04 · GROUPS 〕',
         '.groupinfo  .admins  .tagall',
         '.welcome on/off  .goodbye on/off', '',
-        'Group admin commands require group-admin permissions.',
-        'Send a command with the dot prefix.'
+        'Group commands require appropriate admin permissions.',
+        '♤ POWERED BY SUPREME DEV ♤',
+        'CHRIS REMAINS SUPREME'
       ].join('\n');
     case 'alive':
       return '♤ SUPREME MD V2 is online on this server instance.';
