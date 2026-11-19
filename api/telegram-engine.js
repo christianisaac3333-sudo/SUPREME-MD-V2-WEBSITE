@@ -170,11 +170,15 @@ async function startTelegramBot(pool) {
     const message = String(error.message || 'unknown error').slice(0, 180);
     console.error('Telegram polling error:', message, details ? 'causes=' + details : '');
     if (/409 Conflict/.test(message)) {
-      pollerConflict = true;
       runtimeStatus = 'conflict';
-      runtimeIssue = 'Another service or local process is polling this same bot token. V2 needs a separate Telegram bot token.';
-      console.error('Telegram token conflict: V2 polling paused. Use a unique token for this V2 service.');
-      void stopTelegramBot({ retry: false });
+      runtimeIssue = 'A competing poller was detected. V2 will retry after releasing its database lock.';
+      console.error('Telegram token conflict: stopping this poller and scheduling a guarded retry.');
+      void stopTelegramBot({ retry: false }).finally(() => {
+        if (!shuttingDown && activePool) {
+          pollerConflict = false;
+          schedulePollerRetry(activePool);
+        }
+      });
       return;
     }
     runtimeStatus = 'degraded';
