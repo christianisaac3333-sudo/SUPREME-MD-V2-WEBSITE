@@ -218,6 +218,26 @@ async function startMemberSession(pool, userId, options = {}) {
           const messageTimestamp = Number(message.messageTimestamp?.toNumber?.() ?? message.messageTimestamp) * 1000;
           const receivedAt = Number.isFinite(messageTimestamp) && messageTimestamp > 0 ? messageTimestamp : now;
           console.log('WhatsApp command received: .' + command.name + ' scope=' + (isGroup ? 'group' : 'private') + ' fromMe=' + Boolean(message.key?.fromMe));
+          if (command.name === 'ask') {
+            const question = command.args.join(' ').trim();
+            if (!question || question.length > 2000) { await replyTo('Usage: .ask your question (up to 2000 characters)'); continue; }
+            if (!process.env.OPENAI_API_KEY) { await replyTo('SUPREME AI is not configured on the server yet. An administrator must configure its provider key.'); continue; }
+            try {
+              const upstream = await fetch('https://api.openai.com/v1/responses', {
+                method: 'POST', headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', instructions: 'You are SUPREME AI. Be helpful, accurate, respectful and safe. Do not claim to perform actions you have not performed.', input: question, max_output_tokens: 700 }),
+                signal: AbortSignal.timeout(25000)
+              });
+              const payload = await upstream.json().catch(() => ({}));
+              if (!upstream.ok) throw new Error('AI provider error');
+              const answer = (payload.output || []).flatMap(item => item.content || []).filter(item => item.type === 'output_text').map(item => item.text).join('\\n').trim();
+              await replyTo(answer.slice(0, 3900) || 'AI returned an empty response.');
+            } catch (error) {
+              console.error('WhatsApp AI request failed:', String(error.message || 'unknown').slice(0, 150));
+              await replyTo('SUPREME AI could not respond right now. Please try again later.');
+            }
+            continue;
+          }
           const reply = commandReply(command, { now, receivedAt, uptime: process.uptime(), jid: chat, isGroup });
           if (reply) await replyTo(reply);
         } catch (error) {
